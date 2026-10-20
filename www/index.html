@@ -211,6 +211,14 @@ select.sel{min-height:40px;border:1px solid var(--line);border-radius:8px;backgr
 .sheet-h h2{margin:0;flex:1;font-family:var(--f-display);font-size:1.4rem}
 .vs{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:14px;display:grid;gap:10px}
 .vs h3{margin:0;font-size:.82rem;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+details.vsx{display:block}
+details.vsx>summary{list-style:none;cursor:pointer;display:flex;justify-content:space-between;align-items:center;min-height:28px;font-size:.82rem;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:700}
+details.vsx>summary::-webkit-details-marker{display:none}
+details.vsx>summary::after{content:"▾";font-size:1rem}
+details.vsx[open]>summary::after{content:"▴"}
+.vsx-body{display:grid;gap:10px;margin-top:10px}
+.tone{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.tone .presets button{min-width:64px}
 .vs select{min-height:48px;border:1px solid var(--line);border-radius:10px;background:var(--surface);padding:0 10px;width:100%;min-width:0}
 .vs .row>select{flex:1 1 200px;width:auto}
 .radio{display:flex;gap:10px;align-items:flex-start;padding:8px 10px;border:1px solid var(--line);border-radius:10px;cursor:pointer}
@@ -1583,9 +1591,11 @@ const SAMPLE_ML="നമസ്കാരം. ഇത് മലയാളം ശബ�
 const sampleEn=acc=>`Hello. This is the ${acc} voice. Kannur, Thaliparamba and Iritty.`;
 const SPEEDS=[.75,1,1.25,1.5,2];
 const VS_KEY="pvr-voice-v1";
-const VS={mode:"auto",mlVoice:"",accent:"",enVoice:"",rate:1,pitch:1,volume:1,cont:true,bg:false,
+const VS={mode:"auto",mlVoice:"",accent:"",enVoice:"",rate:1,pitch:1,pitchMl:1,pitchEn:1,volume:1,cont:true,bg:false,
   dict:[{from:"Rs.",to:"rupees"},{from:"Iritty",to:"ഇരിട്ടി"}]};
 try{const s=JSON.parse(localStorage.getItem(VS_KEY)||"{}");if(s&&typeof s==="object")Object.assign(VS,s)}catch(e){}
+const TONES=[["Deep",.8],["Lower",.9],["Normal",1],["Higher",1.1]];
+function pitchFor(lang){const p=lang==="ml"?VS.pitchMl:VS.pitchEn;return typeof p==="number"?p:1}
 function saveVS(){try{localStorage.setItem(VS_KEY,JSON.stringify(VS))}catch(e){}}
 
 let VOICES=[];
@@ -1824,7 +1834,7 @@ function speakFrom(ci){
     list.forEach((grp,k)=>{
       const v=grp.v;
       const u=new SpeechSynthesisUtterance(grp.text);
-      u.voice=v;u.lang=vLang(v);u.rate=VS.rate;u.pitch=VS.pitch;u.volume=VS.volume;
+      u.voice=v;u.lang=vLang(v);u.rate=VS.rate;u.pitch=pitchFor(grp.segs[0].it.part.lang);u.volume=VS.volume;
       u.onstart=()=>{if(g!==R.gen)return;R.grp=grp;grp.t0=Date.now();grp.cur=-1;R.utt=u;R.uttStart=R.lastSpoken=Date.now();R.restarts=0;
         R.uttMax=8000+grp.text.length*160/Math.max(.5,VS.rate);setSeg(grp,0)};
       u.onboundary=e=>{if(g!==R.gen||R.grp!==grp)return;grp.bound=true;R.lastSpoken=Date.now();
@@ -2037,7 +2047,7 @@ function speakSample(text,lang){
   const v=lang==="ml"?pickMl():pickEn();
   if(!v){toast(missingVoiceMsg(lang),true);return}
   try{speechSynthesis.cancel()}catch(e){}
-  const u=new SpeechSynthesisUtterance(text);u.voice=v;u.lang=vLang(v);u.rate=VS.rate;u.pitch=VS.pitch;u.volume=VS.volume;
+  const u=new SpeechSynthesisUtterance(text);u.voice=v;u.lang=vLang(v);u.rate=VS.rate;u.pitch=pitchFor(lang);u.volume=VS.volume;
   u.onerror=e=>{if(e.error!=="interrupted"&&e.error!=="canceled")toast(ttsErrMsg(e.error||"error",v),true)};
   R.keep.push(u);setTimeout(()=>speechSynthesis.speak(u),60);
 }
@@ -2046,56 +2056,76 @@ const ML_HELP=`<div class="help"><b>How to add a Malayalam voice</b>
 <ol><li><b>Android phone (Chrome):</b> open Settings → search “Text-to-speech output” → set Preferred engine to “Speech Services by Google” → tap the gear → Install voice data → Malayalam (India). Then reload this page.</li>
 <li><b>Windows computer:</b> open this page in Microsoft Edge. Edge includes natural Malayalam voices (Midhun and Sobhana) that need internet.</li>
 <li><b>Linux:</b> Chrome on Linux usually has no Malayalam voice. Use your phone or Edge on Windows for Malayalam.</li></ol></div>`;
+const VSOPEN=new Set();
+document.addEventListener("toggle",e=>{const d=e.target;if(d&&d.dataset&&d.dataset.fold){if(d.open)VSOPEN.add(d.dataset.fold);else VSOPEN.delete(d.dataset.fold)}},true);
+function toneRow(lang){
+  const cur=pitchFor(lang);
+  return `<div class="tone"><span class="muted">Tone</span><div class="presets" role="group" aria-label="${lang==="ml"?"Malayalam":"English"} voice tone">${TONES.map(([l,v])=>`<button data-tone="${lang}|${v}" aria-pressed="${Math.abs(cur-v)<.01}">${l}</button>`).join("")}</div></div>`;
+}
+function voiceOpts(list,sel){return list.map((v,i)=>{const lab=voiceLabel(v);return`<option value="${esc(voiceKey(v))}"${sel&&voiceKey(v)===voiceKey(sel)?" selected":""}>${NATIVE_TTS?"":`${i+1}. `}${esc(lab)}</option>`}).join("")}
 function renderVoiceSettings(){
   const box=$("vsBody");
   if(!TTS_OK){box.innerHTML=`<div class="vs"><b>This browser can't read aloud.</b><div class="muted">Open this page in Chrome on Android, or Chrome or Edge on a computer.</div></div>`;return}
   const ml=mlVoices(),mlSel=pickMl(),acc=currentAccent(),have=haveAccents(),en=enVoices(acc),enSel=pickEn();
+  const mlReady=ml.filter(v=>!v.notInstalled).length,enReady=en.filter(v=>!v.notInstalled).length;
   const others=[...have].filter(a=>!ACCENTS.some(x=>x.id===a)).sort();
-  const wanted=VS.accent&&!have.has(VS.accent)?`<div class="note warn">${accentLabel(VS.accent)} isn't available on this device, so ${acc?accentLabel(acc):"no English voice"} is used instead.</div>`:"";
+  const wanted=VS.accent&&!have.has(VS.accent)?`<div class="note warn">${accentLabel(VS.accent)} isn't available here, so ${acc?accentLabel(acc):"no English voice"} is used instead.</div>`:"";
   const presets=SPEEDS.map(r=>`<button data-rate="${r}" aria-pressed="${Math.abs(VS.rate-r)<.01}">${r}×</button>`).join("");
   box.innerHTML=`
-  <div class="vs"><h3>Reading mode</h3>
-    ${[["auto","Both languages","Malayalam voice for Malayalam, English voice for English. Switches inside a sentence."],
-       ["ml","Malayalam voice for everything","Reads English words with the Malayalam voice too."],
-       ["en","English parts only","Skips Malayalam text. English is never read with a Malayalam voice and Malayalam is never read with an English voice."]]
-      .map(([v,l,s])=>`<label class="radio"><input type="radio" name="vsMode" value="${v}"${VS.mode===v?" checked":""}><span><b>${l}</b><small>${s}</small></span></label>`).join("")}
-    <div class="muted">To hear a translation, use “Translate” under Ask Claude, then “Read aloud”.</div>
-  </div>
   <div class="vs"><h3>Malayalam voice</h3>
-    ${ml.length?`<div class="row"><select id="vsMl" aria-label="Malayalam voice">${ml.map(v=>opt(v,mlSel&&voiceKey(v)===voiceKey(mlSel))).join("")}</select><button class="btn sm" data-test="ml">▶ Test</button></div>
-      ${ml.length===1?`<div class="muted">This device offers one Malayalam voice${gender(ml[0])?` (${gender(ml[0])})`:""}. Edge on Windows offers both a male and a female voice.</div>`:""}`
-      :`<div class="note bad">No Malayalam voice found on this device.</div>`}
-    ${ml.length?`<details class="vsd"><summary>Add or change Malayalam voices</summary>${ML_HELP}</details>`:ML_HELP}
+    ${ml.length?`<div class="row"><select id="vsMl" aria-label="Malayalam voice">${voiceOpts(ml,mlSel)}</select><button class="btn sm" data-test="ml">▶ Test</button></div>
+      ${toneRow("ml")}
+      ${mlReady>1?`<button class="btn sm" data-tryall="ml">▶ Listen to all ${mlReady} Malayalam voices</button>`:""}
+      <div class="muted">If the voice sounds young or childlike, try another voice number, or set the tone to Lower or Deep.</div>`
+      :`<div class="note bad">No Malayalam voice found.</div>${ML_HELP}`}
   </div>
-  <div class="vs"><h3>English accent and voice</h3>
-    ${have.size?`<select id="vsAcc" aria-label="English accent">${ACCENTS.map(a=>`<option value="${a.id}"${a.id===acc?" selected":""}${have.has(a.id)?"":" disabled"}>${a.label}${have.has(a.id)?"":" — not on this device"}</option>`).join("")}${others.map(a=>`<option value="${a}"${a===acc?" selected":""}>${esc(accentLabel(a))}</option>`).join("")}</select>
+  <div class="vs"><h3>English voice</h3>
+    ${have.size?`<select id="vsAcc" aria-label="English accent">${ACCENTS.map(a=>`<option value="${a.id}"${a.id===acc?" selected":""}${have.has(a.id)?"":" disabled"}>${a.label}${have.has(a.id)?"":" — not available"}</option>`).join("")}${others.map(a=>`<option value="${a}"${a===acc?" selected":""}>${esc(accentLabel(a))}</option>`).join("")}</select>
       ${wanted}
-      <div class="row"><select id="vsEn" aria-label="English voice">${en.map(v=>opt(v,enSel&&voiceKey(v)===voiceKey(enSel))).join("")}</select><button class="btn sm" data-test="en">▶ Test</button></div>`
-      :`<div class="note bad">No English voice found on this device.</div>`}
+      <div class="row"><select id="vsEn" aria-label="English voice">${voiceOpts(en,enSel)}</select><button class="btn sm" data-test="en">▶ Test</button></div>
+      ${toneRow("en")}
+      ${enReady>1?`<button class="btn sm" data-tryall="en">▶ Listen to all ${enReady} ${esc(accentLabel(acc))} voices</button>`:""}`
+      :`<div class="note bad">No English voice found.</div>`}
   </div>
-  <div class="vs"><h3>Speed, pitch and volume</h3>
-    <div class="slider"><label for="vsRate">Speed</label><input type="range" id="vsRate" min="0.5" max="2" step="0.05" value="${VS.rate}"><output id="oRate">${VS.rate.toFixed(2)}×</output></div>
+  <div class="vs"><h3>Speed</h3>
     <div class="presets" aria-label="Speed presets">${presets}</div>
-    <div class="slider"><label for="vsPitch">Pitch</label><input type="range" id="vsPitch" min="0.5" max="1.5" step="0.05" value="${VS.pitch}"><output id="oPitch">${VS.pitch.toFixed(2)}</output></div>
-    <div class="slider"><label for="vsVol">Volume</label><input type="range" id="vsVol" min="0" max="1" step="0.05" value="${VS.volume}"><output id="oVol">${Math.round(VS.volume*100)}%</output></div>
-    <div class="muted">Some voices ignore pitch. Speeds above 1.5× may sound clipped in Malayalam.</div>
+    <div class="slider"><label for="vsRate">Fine tune</label><input type="range" id="vsRate" min="0.5" max="2" step="0.05" value="${VS.rate}"><output id="oRate">${VS.rate.toFixed(2)}×</output></div>
   </div>
-  <div class="vs"><h3>Pages and screen</h3>
-    <label class="chk" for="vsCont"><input type="checkbox" id="vsCont"${VS.cont?" checked":""}> Continue to the next page automatically</label>
-    <label class="chk" for="vsBg"><input type="checkbox" id="vsBg"${VS.bg?" checked":""}> Show controls on the lock screen (experimental)</label>
-    <div class="note">${screenStatus()}</div>
-    <div class="muted">The screen stays on while reading, which is the most reliable way to keep listening. Each page is handed to the voice in one go, so it keeps reading if the screen dims. If your phone still stops the voice with the screen off, reading carries on from the same sentence when you turn the screen back on. The lock-screen option plays a silent track so your phone shows play, pause and skip buttons; it may not work on every phone.</div>
-  </div>
-  <div class="vs"><h3>Pronunciation fixes</h3>
-    <div class="muted">Write a word as it appears, and how it should be said. To get Kerala pronunciation for an English spelling, write it in Malayalam letters, so the Malayalam voice says it. Applies only to speech; the text is not changed.</div>
+  <div id="vsEngineSlot"></div>
+  <details class="vs vsx" data-fold="Reading mode"${VSOPEN.has("Reading mode")?" open":""}><summary>Reading mode</summary><div class="vsx-body">
+    ${[["auto","Both languages","Malayalam voice for Malayalam, English voice for English."],
+       ["ml","Malayalam voice for everything","Reads English words with the Malayalam voice too."],
+       ["en","English parts only","Skips Malayalam text."]]
+      .map(([v,l,s])=>`<label class="radio"><input type="radio" name="vsMode" value="${v}"${VS.mode===v?" checked":""}><span><b>${l}</b><small>${s}</small></span></label>`).join("")}
+  </div></details>
+  <details class="vs vsx" data-fold="Pronunciation fixes"${VSOPEN.has("Pronunciation fixes")?" open":""}><summary>Pronunciation fixes</summary><div class="vsx-body">
+    <div class="muted">Write a word as it appears and how it should be said. Writing it in Malayalam letters makes the Malayalam voice say it.</div>
     <div class="dhead"><span>Written as</span><span>Say it as</span></div>
     <div class="dict" id="dictRows">${VS.dict.map((d,i)=>`<div class="drow"><input data-di="${i}" data-f="from" value="${esc(d.from||"")}" aria-label="Written as"><input data-di="${i}" data-f="to" value="${esc(d.to||"")}" aria-label="Say it as"><button class="btn sm icon-btn" data-dtest="${i}" aria-label="Hear ${esc(d.to||"")}">▶</button><button class="btn sm icon-btn ghost danger" data-ddel="${i}" aria-label="Remove ${esc(d.from||"")}">✕</button></div>`).join("")}</div>
     <div><button class="btn sm" id="dictAdd">+ Add a word</button></div>
-  </div>
-  <div class="vs"><h3>Voices on this device</h3>
-    <div class="muted">${VOICES.length} voices: ${ml.length} Malayalam, ${VOICES.filter(isEn).length} English.${VOICES.some(v=>v.localService===false)?" Voices marked “needs internet” send each sentence to Google or Microsoft to be spoken; the rest work offline.":""}</div>
-    <details class="vsd"><summary>Show all</summary><div class="vlist">${VOICES.map(v=>`<span>${esc(vLang(v))} · ${esc(v.name)}${v.localService===false?" · online":""}</span>`).join("")||"None"}</div></details>
-  </div>`;
+  </div></details>
+  <details class="vs vsx" data-fold="More settings"${VSOPEN.has("More settings")?" open":""}><summary>More settings</summary><div class="vsx-body">
+    <div class="slider"><label for="vsVol">Volume</label><input type="range" id="vsVol" min="0" max="1" step="0.05" value="${VS.volume}"><output id="oVol">${Math.round(VS.volume*100)}%</output></div>
+    <label class="chk" for="vsCont"><input type="checkbox" id="vsCont"${VS.cont?" checked":""}> Continue to the next page automatically</label>
+    ${NATIVE_TTS?"":`<label class="chk" for="vsBg"><input type="checkbox" id="vsBg"${VS.bg?" checked":""}> Show controls on the lock screen (experimental)</label>`}
+    <div class="note">${screenStatus()}</div>
+    <details class="vsd"><summary>All ${VOICES.length} voices</summary><div class="vlist">${VOICES.map(v=>`<span>${esc(vLang(v))} · ${esc(v.name)}${v.localService===false?" · online":""}${v.notInstalled?" · not downloaded":""}</span>`).join("")||"None"}</div></details>
+  </div></details>`;
+}
+/* play every voice of a language in turn, each saying its number, so the listener can choose */
+function tryAllVoices(lang){
+  const list=(lang==="ml"?mlVoices():enVoices(currentAccent())).filter(v=>!v.notInstalled).slice(0,10);
+  if(!list.length)return;
+  if(R.on)pauseReading();
+  const all=lang==="ml"?mlVoices():enVoices(currentAccent());
+  const say=v=>{const n=all.indexOf(v)+1;return lang==="ml"?`ശബ്ദം ${n}. നമസ്കാരം, ഞാൻ ഈ പുസ്തകം വായിച്ചു തരാം.`:`Voice ${n}. Hello, I will read this book for you.`};
+  if(NATIVE_TTS){
+    NATIVE_TTS.speak({items:list.map((v,i)=>({tag:"try|"+i,text:say(v),lang:vLang(v),voice:v.name,engine:v.engine||"",rate:VS.rate,pitch:pitchFor(lang),page:0})),title:"Voice preview",pages:0}).catch(()=>{});
+  }else{
+    try{speechSynthesis.cancel()}catch(e){}
+    list.forEach(v=>{const u=new SpeechSynthesisUtterance(say(v));u.voice=v;u.lang=vLang(v);u.rate=VS.rate;u.pitch=pitchFor(lang);u.volume=VS.volume;R.keep.push(u);speechSynthesis.speak(u)});
+  }
+  toast(`Playing ${list.length} voices. Each says its number; pick that number in the list.`);
 }
 function openSheet(){loadVoices();renderVoiceSettings();$("sheet").hidden=false;$("sheetClose").focus()}
 function closeSheet(){$("sheet").hidden=true;saveVS();updatePlayUI();if(!R.on&&!R.paused)idleHint();renderAlong();$("voiceBtn").focus()}
@@ -2116,7 +2146,7 @@ $("vsBody").addEventListener("change",e=>{
 $("vsBody").addEventListener("input",e=>{
   const t=e.target;
   if(t.id==="vsRate"){VS.rate=+t.value;$("oRate").textContent=VS.rate.toFixed(2)+"×";document.querySelectorAll("[data-rate]").forEach(b=>b.setAttribute("aria-pressed",Math.abs(+b.dataset.rate-VS.rate)<.01))}
-  if(t.id==="vsPitch"){VS.pitch=+t.value;$("oPitch").textContent=VS.pitch.toFixed(2)}
+
   if(t.id==="vsVol"){VS.volume=+t.value;$("oVol").textContent=Math.round(VS.volume*100)+"%"}
   if(t.dataset.di!=null)VS.dict[+t.dataset.di][t.dataset.f]=t.value;
   saveVS();
@@ -2126,6 +2156,8 @@ $("vsBody").addEventListener("click",e=>{
   if(b.dataset.test==="ml")speakSample(SAMPLE_ML,"ml");
   else if(b.dataset.test==="en")speakSample(sampleEn(accentLabel(currentAccent())),"en");
   else if(b.dataset.rate){VS.rate=+b.dataset.rate;saveVS();renderVoiceSettings()}
+  else if(b.dataset.tone){const[l,v]=b.dataset.tone.split("|");if(l==="ml")VS.pitchMl=+v;else VS.pitchEn=+v;saveVS();b.parentNode.querySelectorAll("button").forEach(x=>x.setAttribute("aria-pressed",x===b));speakSample(l==="ml"?SAMPLE_ML:sampleEn(accentLabel(currentAccent())),l)}
+  else if(b.dataset.tryall)tryAllVoices(b.dataset.tryall);
   else if(b.dataset.dtest!=null){const d=VS.dict[+b.dataset.dtest];if(d&&d.to)speakSample(d.to,/[ഀ-ൿ]/.test(d.to)?"ml":"en")}
   else if(b.dataset.ddel!=null){VS.dict.splice(+b.dataset.ddel,1);saveVS();renderVoiceSettings()}
   else if(b.id==="dictAdd"){VS.dict.push({from:"",to:""});saveVS();renderVoiceSettings();const ins=$("dictRows").querySelectorAll("input");ins[ins.length-2]&&ins[ins.length-2].focus()}
@@ -2443,8 +2475,8 @@ if(NATIVE_TTS){
     const sel=(id,lang)=>`<select id="${id}" aria-label="Engine for ${lang}"><option value=""${!engFor(lang==="Malayalam"?"ml":"en")?" selected":""}>Phone default (${esc(engLabel(""))})</option>${N.engines.filter(e=>e.name!==N.engine).map(e=>`<option value="${esc(e.name)}"${e.name===engFor(lang==="Malayalam"?"ml":"en")?" selected":""}>${esc(e.label||e.name)}</option>`).join("")}</select>`;
     const ml=mlVoices(),mlReady=ml.filter(v=>!v.notInstalled).length;
     const installed=new Set(N.engines.map(e=>e.name));
-    const sec=document.createElement("div");sec.className="vs";
-    sec.innerHTML=`<h3>Speech engines</h3>
+    const sec=document.createElement("details");sec.className="vs vsx";sec.dataset.fold="engines";if(VSOPEN.has("engines"))sec.open=true;
+    sec.innerHTML=`<summary>Speech engines and more voices</summary><div class="vsx-body">
       <div class="muted">Your phone has ${N.engines.length} speech engine${N.engines.length===1?"":"s"}. Choose one for each language; reading switches between them automatically.</div>
       <label class="muted" for="vsEngMl">Engine for Malayalam</label>${sel("vsEngMl","Malayalam")}
       <div class="muted">${mlReady?`${mlReady} Malayalam voice${mlReady>1?"s":""} ready in this engine.`:"This engine has no Malayalam voice ready. Google's engine has the most natural ones; eSpeak NG also speaks Malayalam."}</div>
@@ -2453,8 +2485,8 @@ if(NATIVE_TTS){
       <details class="vsd"><summary>Get more free engines</summary><div class="help">
         ${FREE_ENGINES.map(f=>`<div><b>${f.name}</b>${installed.has(f.pkg)?" · installed":""}<br>${f.what}<br>${installed.has(f.pkg)?"":`<a href="${f.url}" rel="noopener">Get ${f.name}</a>`}</div>`).join("")}
         <div>After installing, come back here: new engines appear in the lists above.</div></div></details>
-      <div class="muted">“High quality” voices sound most natural. “Needs internet” voices stream from the engine's servers and still read with the screen off. “Not downloaded” voices need their voice data: tap Download voices.</div>`;
-    box.insertBefore(sec,box.children[1]||null);
+      <div class="muted">“High quality” voices sound most natural. “Needs internet” voices stream from the engine's servers and still read with the screen off. “Not downloaded” voices need their voice data: tap Download voices.</div></div>`;
+    const slot=$("vsEngineSlot");if(slot)slot.replaceWith(sec);else box.appendChild(sec);
   };
   $("vsBody").addEventListener("change",async e=>{
     const id=e.target.id;if(id!=="vsEngMl"&&id!=="vsEngEn")return;
@@ -2468,7 +2500,7 @@ if(NATIVE_TTS){
     if(e.target.closest("[data-natinstall]"))NATIVE_TTS.openTtsSettings({install:true,engine:engFor("ml")}).catch(()=>toast("Open Android Settings → Text-to-speech output → the engine's settings → Install voice data.",true));
     if(e.target.closest("[data-natsettings]"))NATIVE_TTS.openTtsSettings({install:false}).catch(()=>toast("Open Android Settings and search for “Text-to-speech output”.",true));
   });
-  const itemFor=(tag,part,page)=>{const v=part.lang==="ml"?pickMl():pickEn();return v?{tag,text:part.text,lang:vLang(v),voice:v.name,engine:v.engine||"",rate:VS.rate,pitch:VS.pitch,page}:null};
+  const itemFor=(tag,part,page)=>{const v=part.lang==="ml"?pickMl():pickEn();return v?{tag,text:part.text,lang:vLang(v),voice:v.name,engine:v.engine||"",rate:VS.rate,pitch:pitchFor(part.lang),page}:null};
   speakFrom=function(ci){
     const g=++R.gen;R.utt=null;
     R.ci=Math.max(0,Math.min(ci,R.chunks.length));R.pi=0;
@@ -2509,7 +2541,7 @@ if(NATIVE_TTS){
   speakSample=function(text,lang){
     if(R.on)pauseReading();
     const v=lang==="ml"?pickMl():pickEn();if(!v){toast(missingVoiceMsg(lang),true);return}
-    NATIVE_TTS.sample({items:[{tag:"sample",text,lang:vLang(v),voice:v.name,engine:v.engine||"",rate:VS.rate,pitch:VS.pitch,page:0}]}).catch(()=>{});
+    NATIVE_TTS.sample({items:[{tag:"sample",text,lang:vLang(v),voice:v.name,engine:v.engine||"",rate:VS.rate,pitch:pitchFor(lang),page:0}]}).catch(()=>{});
   };
   // the screen only needs to stay on while OCR runs; reading works with it off
   wakeOn=async function(){if(BG.running){NATIVE_TTS.keepScreenOn({on:true}).catch(()=>{});KA.mode="native"}};
