@@ -4,6 +4,9 @@ on:
   push:
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -14,7 +17,7 @@ jobs:
         with:
           node-version: 22
 
-      - uses: actions/setup-java@v4
+      - uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: 21
@@ -31,7 +34,21 @@ jobs:
           chmod +x gradlew
           ./gradlew assembleDebug --no-daemon
 
+      - name: Name the APK
+        run: cp android/app/build/outputs/apk/debug/app-debug.apk PDF-Voice-Reader.apk
+
       - uses: actions/upload-artifact@v4
         with:
           name: PDF-Voice-Reader-APK
-          path: android/app/build/outputs/apk/debug/app-debug.apk
+          path: PDF-Voice-Reader.apk
+
+      - name: Publish as a release (download the .apk straight to the phone)
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: build-${{ github.run_number }}
+          name: PDF Voice Reader (build ${{ github.run_number }})
+          body: |
+            Open this page on your Android phone and tap **PDF-Voice-Reader.apk** to download and install.
+            Built from commit ${{ github.sha }}.
+          files: PDF-Voice-Reader.apk
+          make_latest: true

@@ -13,8 +13,8 @@ inside a background service with a "Reading" notification).
    Also upload the hidden `.github` folder — it holds the build recipe.
 3. Commit. Open the **Actions** tab: "Build Android APK" starts by itself
    and takes about 5–8 minutes.
-4. Open the finished run, scroll to **Artifacts** and download
-   `PDF-Voice-Reader-APK` (a zip containing `app-debug.apk`).
+4. When it finishes, open **Releases** (right side of the repository page)
+   on your phone and tap **PDF-Voice-Reader.apk** to download it.
 
 ### B. Android Studio on Windows
 1. Install Node.js 22 and Android Studio (current version).
