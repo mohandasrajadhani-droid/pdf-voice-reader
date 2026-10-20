@@ -41,3 +41,9 @@ Speech Services by Google → Install voice data → Malayalam (India).
 - `.github/workflows/build-apk.yml` — the GitHub build recipe.
 
 To change the reader page, replace `www/index.html` and build again.
+
+## More voices
+Voice settings → Speech engines lets you pick an engine for Malayalam and one for
+English (for example Google for Malayalam, Samsung for English). Free engines you can
+add: Speech Services by Google, eSpeak NG (Play Store, includes Malayalam),
+SherpaTTS (F-Droid), RHVoice. New engines appear in the lists after installing.

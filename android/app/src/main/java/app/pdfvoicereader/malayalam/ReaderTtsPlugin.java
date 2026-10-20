@@ -45,12 +45,13 @@ public class ReaderTtsPlugin extends Plugin {
 
     @PluginMethod
     public void getVoices(PluginCall call) {
-        engine.whenReady(() -> main.post(() -> {
+        String pkg = call.getString("engine", "");
+        engine.whenReady(pkg, () -> main.post(() -> {
             JSObject r = new JSObject();
-            r.put("ok", engine.isReady());
-            r.put("engine", engine.engineName());
+            r.put("ok", engine.isReady(pkg));
+            r.put("engine", pkg.isEmpty() ? engine.defaultEngine() : pkg);
             JSArray list = new JSArray();
-            for (Map<String, Object> v : engine.voices()) {
+            for (Map<String, Object> v : engine.voices(pkg)) {
                 JSObject o = new JSObject();
                 for (Map.Entry<String, Object> e : v.entrySet()) o.put(e.getKey(), e.getValue());
                 list.put(o);
@@ -64,7 +65,8 @@ public class ReaderTtsPlugin extends Plugin {
     public void getEngines(PluginCall call) {
         engine.whenReady(() -> main.post(() -> {
             JSObject r = new JSObject();
-            r.put("current", engine.currentEngine());
+            r.put("current", engine.defaultEngine());
+            r.put("default", engine.defaultEngine());
             JSArray list = new JSArray();
             for (Map<String, Object> e : engine.engines()) {
                 JSObject o = new JSObject();
@@ -80,10 +82,10 @@ public class ReaderTtsPlugin extends Plugin {
     public void setEngine(PluginCall call) {
         String pkg = call.getString("engine", "");
         engine.setEngine(pkg);
-        engine.whenReady(() -> main.post(() -> {
+        engine.whenReady(pkg, () -> main.post(() -> {
             JSObject r = new JSObject();
-            r.put("ok", engine.isReady());
-            r.put("current", engine.currentEngine());
+            r.put("ok", engine.isReady(pkg));
+            r.put("current", pkg);
             call.resolve(r);
         }));
     }
@@ -102,7 +104,8 @@ public class ReaderTtsPlugin extends Plugin {
         for (String action : actions) {
             try {
                 Intent i = new Intent(action);
-                String pkg = engine.currentEngine();
+                String pkg = call.getString("engine", "");
+                if (pkg == null || pkg.isEmpty()) pkg = engine.defaultEngine();
                 if (TextToSpeech.Engine.ACTION_INSTALL_TTS_DATA.equals(action) && pkg != null && !pkg.isEmpty()) i.setPackage(pkg);
                 i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
                 getActivity().startActivity(i);
@@ -190,7 +193,8 @@ public class ReaderTtsPlugin extends Plugin {
                     o.optString("voice", ""),
                     (float) o.optDouble("rate", 1.0),
                     (float) o.optDouble("pitch", 1.0),
-                    o.optInt("page", 0)
+                    o.optInt("page", 0),
+                    o.optString("engine", "")
                 ));
             }
         } catch (Exception e) {

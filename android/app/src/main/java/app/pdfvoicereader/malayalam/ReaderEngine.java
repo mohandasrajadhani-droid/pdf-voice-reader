@@ -8,15 +8,17 @@ import android.speech.tts.Voice;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 
 /**
- * Owns Android's text-to-speech engine and the reading queue.
- * The queue lives here, outside the web page, so reading carries on
- * page after page while the screen is off and the page is asleep.
+ * Owns the phone's text-to-speech engines and the reading queue.
+ * Each sentence can use a different engine (for example Google for Malayalam
+ * and Samsung or eSpeak for English). The queue lives here, outside the web page,
+ * so reading carries on page after page while the screen is off.
  */
 public class ReaderEngine {
 
@@ -32,8 +34,9 @@ public class ReaderEngine {
         final float rate;
         final float pitch;
         final int page;
+        final String engine;
 
-        Item(String tag, String text, String lang, String voice, float rate, float pitch, int page) {
+        Item(String tag, String text, String lang, String voice, float rate, float pitch, int page, String engine) {
             this.tag = tag;
             this.text = text;
             this.lang = lang;
@@ -41,10 +44,25 @@ public class ReaderEngine {
             this.rate = rate;
             this.pitch = pitch;
             this.page = page;
+            this.engine = engine == null ? "" : engine;
         }
     }
 
-    /** How many sentences are handed to the engine ahead of the one being spoken. */
+    /** One speech engine installed on the phone ("" = the phone's default engine). */
+    private static class Eng {
+        final String pkg;
+        TextToSpeech tts;
+        boolean ready = false;
+        boolean initDone = false;
+        final List<Runnable> waiting = new ArrayList<>();
+        final Map<String, Voice> voices = new HashMap<>();
+
+        Eng(String pkg) {
+            this.pkg = pkg;
+        }
+    }
+
+    /** How many sentences are handed to an engine ahead of the one being spoken. */
     private static final int AHEAD = 40;
 
     private static ReaderEngine instance;
@@ -55,12 +73,9 @@ public class ReaderEngine {
     }
 
     private final Context ctx;
-    private TextToSpeech tts;
-    private boolean ready = false;
-    private boolean initDone = false;
-    private final List<Runnable> whenReady = new ArrayList<>();
+    private final Map<String, Eng> engs = new HashMap<>();
     private final List<Item> items = new ArrayList<>();
-    private final Map<String, Voice> voiceCache = new HashMap<>();
+    private final UtteranceProgressListener progress;
     private int current = 0;
     private int queuedUpTo = 0;
     private boolean playing = false;
@@ -70,47 +85,10 @@ public class ReaderEngine {
     private String title = "PDF Voice Reader";
     private int totalPages = 0;
     private Listener listener;
-    private String enginePkg = "";
-    private int ttsGeneration = 0;
 
     private ReaderEngine(Context context) {
         ctx = context;
-        createTts("");
-    }
-
-    /** Starts the speech engine: the phone's default one, or the engine with the given package name. */
-    private void createTts(String pkg) {
-        final int myGen;
-        synchronized (this) {
-            if (tts != null) {
-                try {
-                    tts.stop();
-                    tts.shutdown();
-                } catch (Exception ignored) {
-                }
-            }
-            ready = false;
-            initDone = false;
-            voiceCache.clear();
-            enginePkg = pkg == null ? "" : pkg;
-            myGen = ++ttsGeneration;
-        }
-        TextToSpeech.OnInitListener onInit = status -> {
-            List<Runnable> run;
-            synchronized (ReaderEngine.this) {
-                if (myGen != ttsGeneration) return;
-                ready = status == TextToSpeech.SUCCESS;
-                initDone = true;
-                run = new ArrayList<>(whenReady);
-                whenReady.clear();
-            }
-            for (Runnable r : run) r.run();
-        };
-        TextToSpeech created = enginePkg.isEmpty() ? new TextToSpeech(ctx, onInit) : new TextToSpeech(ctx, onInit, enginePkg);
-        synchronized (this) {
-            tts = created;
-        }
-        created.setOnUtteranceProgressListener(new UtteranceProgressListener() {
+        progress = new UtteranceProgressListener() {
             @Override
             public void onStart(String utteranceId) {
                 handleStart(utteranceId);
@@ -135,28 +113,102 @@ public class ReaderEngine {
 
             @Override
             public void onStop(String utteranceId, boolean interrupted) {
-                // stopped on purpose (pause, stop, or a new queue); nothing to do
+                // stopped on purpose (pause, stop, or a new queue)
             }
-        });
+        };
+        eng("");
     }
 
-    /** Switches to another speech engine installed on the phone (empty = the phone's default). */
-    public void setEngine(String pkg) {
-        synchronized (this) {
-            if (playing) {
-                playing = false;
-                paused = true;
-                session++;
-            }
+    // ---------------------------------------------------------------- engines
+
+    private synchronized Eng eng(String pkg) {
+        String key = pkg == null ? "" : pkg;
+        Eng e = engs.get(key);
+        if (e == null) {
+            e = new Eng(key);
+            engs.put(key, e);
+            final Eng created = e;
+            TextToSpeech.OnInitListener onInit = status -> {
+                List<Runnable> run;
+                synchronized (ReaderEngine.this) {
+                    created.ready = status == TextToSpeech.SUCCESS;
+                    created.initDone = true;
+                    run = new ArrayList<>(created.waiting);
+                    created.waiting.clear();
+                }
+                for (Runnable r : run) r.run();
+            };
+            created.tts = key.isEmpty() ? new TextToSpeech(ctx, onInit) : new TextToSpeech(ctx, onInit, key);
+            created.tts.setOnUtteranceProgressListener(progress);
         }
-        createTts(pkg);
+        return e;
     }
 
-    /** The speech engines installed on the phone, and which one is in use. */
+    /** Runs the task once the engine has started (immediately if it already has). */
+    public void whenReady(String pkg, Runnable r) {
+        boolean now;
+        synchronized (this) {
+            Eng e = eng(pkg);
+            now = e.initDone;
+            if (!now) e.waiting.add(r);
+        }
+        if (now) r.run();
+    }
+
+    public void whenReady(Runnable r) {
+        whenReady("", r);
+    }
+
+    /** Runs the task once every listed engine has started. */
+    private void whenAllReady(Set<String> pkgs, Runnable r) {
+        if (pkgs.isEmpty()) {
+            r.run();
+            return;
+        }
+        final int[] left = {pkgs.size()};
+        for (String p : pkgs) {
+            whenReady(p, () -> {
+                boolean go;
+                synchronized (left) {
+                    left[0]--;
+                    go = left[0] == 0;
+                }
+                if (go) r.run();
+            });
+        }
+    }
+
+    public synchronized boolean isReady(String pkg) {
+        return eng(pkg).ready;
+    }
+
+    public synchronized boolean isReady() {
+        return isReady("");
+    }
+
+    /** Package name of the phone's default engine. */
+    public synchronized String defaultEngine() {
+        try {
+            String e = eng("").tts.getDefaultEngine();
+            return e == null ? "" : e;
+        } catch (Exception ex) {
+            return "";
+        }
+    }
+
+    public String engineName() {
+        return defaultEngine();
+    }
+
+    public String currentEngine() {
+        return defaultEngine();
+    }
+
+    /** The speech engines installed on the phone. */
     public synchronized List<Map<String, Object>> engines() {
         List<Map<String, Object>> out = new ArrayList<>();
         try {
-            for (TextToSpeech.EngineInfo e : tts.getEngines()) {
+            for (TextToSpeech.EngineInfo e : eng("").tts.getEngines()) {
                 Map<String, Object> m = new HashMap<>();
                 m.put("name", e.name);
                 m.put("label", e.label == null ? e.name : e.label);
@@ -167,10 +219,42 @@ public class ReaderEngine {
         return out;
     }
 
-    public synchronized String currentEngine() {
-        if (!enginePkg.isEmpty()) return enginePkg;
-        return engineName();
+    /** Starts an engine (kept for the page's engine picker). */
+    public void setEngine(String pkg) {
+        eng(pkg);
     }
+
+    /** All voices one engine offers: name, language, quality, internet need, downloaded or not. */
+    public synchronized List<Map<String, Object>> voices(String pkg) {
+        List<Map<String, Object>> out = new ArrayList<>();
+        Eng e = eng(pkg);
+        if (!e.ready) return out;
+        Set<Voice> set = null;
+        try {
+            set = e.tts.getVoices();
+        } catch (Exception ignored) {
+        }
+        if (set == null) return out;
+        e.voices.clear();
+        for (Voice v : set) {
+            e.voices.put(v.getName(), v);
+            Map<String, Object> m = new HashMap<>();
+            m.put("name", v.getName());
+            m.put("lang", v.getLocale() == null ? "" : v.getLocale().toLanguageTag());
+            m.put("quality", v.getQuality());
+            m.put("network", v.isNetworkConnectionRequired());
+            Set<String> f = v.getFeatures();
+            m.put("notInstalled", f != null && f.contains(TextToSpeech.Engine.KEY_FEATURE_NOT_INSTALLED));
+            out.add(m);
+        }
+        return out;
+    }
+
+    public List<Map<String, Object>> voices() {
+        return voices("");
+    }
+
+    // ---------------------------------------------------------------- queue
 
     public synchronized void setListener(Listener l) {
         listener = l;
@@ -184,20 +268,6 @@ public class ReaderEngine {
         if (l != null) l.onEvent(name, tag == null ? "" : tag, extra == null ? "" : extra);
     }
 
-    /** Runs the task once the engine has started (immediately if it already has). */
-    public void whenReady(Runnable r) {
-        boolean now;
-        synchronized (this) {
-            now = initDone;
-            if (!now) whenReady.add(r);
-        }
-        if (now) r.run();
-    }
-
-    public synchronized boolean isReady() {
-        return ready;
-    }
-
     public synchronized boolean isPlaying() {
         return playing;
     }
@@ -208,40 +278,6 @@ public class ReaderEngine {
 
     public synchronized String currentTag() {
         return current < items.size() ? items.get(current).tag : "";
-    }
-
-    public synchronized String engineName() {
-        try {
-            String e = tts.getDefaultEngine();
-            return e == null ? "" : e;
-        } catch (Exception ex) {
-            return "";
-        }
-    }
-
-    /** All voices the phone offers: name, language, quality, and whether it needs internet. */
-    public synchronized List<Map<String, Object>> voices() {
-        List<Map<String, Object>> out = new ArrayList<>();
-        if (!ready) return out;
-        Set<Voice> set = null;
-        try {
-            set = tts.getVoices();
-        } catch (Exception ignored) {
-        }
-        if (set == null) return out;
-        voiceCache.clear();
-        for (Voice v : set) {
-            voiceCache.put(v.getName(), v);
-            Map<String, Object> m = new HashMap<>();
-            m.put("name", v.getName());
-            m.put("lang", v.getLocale() == null ? "" : v.getLocale().toLanguageTag());
-            m.put("quality", v.getQuality());
-            m.put("network", v.isNetworkConnectionRequired());
-            Set<String> f = v.getFeatures();
-            m.put("notInstalled", f != null && f.contains(TextToSpeech.Engine.KEY_FEATURE_NOT_INSTALLED));
-            out.add(m);
-        }
-        return out;
     }
 
     /** Replace the queue and start reading from its first item. */
@@ -265,20 +301,25 @@ public class ReaderEngine {
     }
 
     public void playFrom(int index) {
-        whenReady(() -> {
+        Set<String> needed = new HashSet<>();
+        synchronized (this) {
+            for (int i = Math.max(0, index); i < items.size(); i++) needed.add(items.get(i).engine);
+        }
+        whenAllReady(needed, () -> {
             synchronized (ReaderEngine.this) {
-                if (!ready) {
-                    emit("error", "", "engine");
-                    return;
-                }
                 session++;
-                tts.stop();
+                stopAll();
                 current = Math.max(0, Math.min(index, items.size()));
                 queuedUpTo = current;
                 playing = current < items.size();
                 paused = false;
                 lastPage = -1;
                 if (playing) {
+                    if (!eng(items.get(current).engine).ready) {
+                        playing = false;
+                        emit("error", items.get(current).tag, "engine");
+                        return;
+                    }
                     ReaderService.setPlaying(ctx, title, pageText(items.get(current).page), true);
                     topUp();
                 } else {
@@ -293,7 +334,7 @@ public class ReaderEngine {
         playing = false;
         paused = true;
         session++;
-        tts.stop();
+        stopAll();
         int p = current < items.size() ? items.get(current).page : 0;
         ReaderService.setPlaying(ctx, title, "Paused · " + pageText(p), false);
         emit("paused", currentTag(), "");
@@ -313,7 +354,7 @@ public class ReaderEngine {
         playing = false;
         paused = false;
         session++;
-        tts.stop();
+        stopAll();
         items.clear();
         current = 0;
         queuedUpTo = 0;
@@ -322,50 +363,79 @@ public class ReaderEngine {
 
     /** Speaks one short sample (voice test), outside the reading queue. */
     public void sample(Item it) {
-        whenReady(() -> {
+        whenReady(it.engine, () -> {
             synchronized (ReaderEngine.this) {
-                if (!ready) return;
+                Eng e = eng(it.engine);
+                if (!e.ready) {
+                    emit("error", "sample", "engine");
+                    return;
+                }
                 if (playing) pause();
                 session++;
-                tts.stop();
-                applyVoice(it);
-                tts.speak(it.text, TextToSpeech.QUEUE_FLUSH, new Bundle(), "sample");
+                stopAll();
+                applyVoice(e, it);
+                e.tts.speak(it.text, TextToSpeech.QUEUE_FLUSH, new Bundle(), "sample");
             }
         });
     }
 
     // ---- internals (called with the lock held) ----
 
+    private void stopAll() {
+        for (Eng e : engs.values()) {
+            try {
+                if (e.tts != null) e.tts.stop();
+            } catch (Exception ignored) {
+            }
+        }
+    }
+
     private String pageText(int page) {
         if (page <= 0) return "Reading";
         return totalPages > 0 ? "Page " + page + " of " + totalPages : "Page " + page;
     }
 
-    private void applyVoice(Item it) {
-        boolean set = false;
-        if (it.voice != null && !it.voice.isEmpty()) {
-            Voice v = voiceCache.get(it.voice);
-            if (v == null) {
-                voices();
-                v = voiceCache.get(it.voice);
-            }
-            if (v != null) set = tts.setVoice(v) == TextToSpeech.SUCCESS;
-        }
-        if (!set && it.lang != null && !it.lang.isEmpty()) {
-            tts.setLanguage(Locale.forLanguageTag(it.lang));
-        }
-        tts.setSpeechRate(it.rate);
-        tts.setPitch(it.pitch);
+    private String engOf(int i) {
+        return items.get(i).engine;
     }
 
-    private void topUp() {
-        int end = Math.min(items.size(), current + AHEAD);
-        for (int i = Math.max(queuedUpTo, current); i < end; i++) {
-            Item it = items.get(i);
-            applyVoice(it);
-            tts.speak(it.text, TextToSpeech.QUEUE_ADD, new Bundle(), session + ":" + i);
+    private void applyVoice(Eng e, Item it) {
+        boolean set = false;
+        if (it.voice != null && !it.voice.isEmpty()) {
+            Voice v = e.voices.get(it.voice);
+            if (v == null) {
+                voices(e.pkg);
+                v = e.voices.get(it.voice);
+            }
+            if (v != null) set = e.tts.setVoice(v) == TextToSpeech.SUCCESS;
         }
-        if (end > queuedUpTo) queuedUpTo = end;
+        if (!set && it.lang != null && !it.lang.isEmpty()) {
+            e.tts.setLanguage(Locale.forLanguageTag(it.lang));
+        }
+        e.tts.setSpeechRate(it.rate);
+        e.tts.setPitch(it.pitch);
+    }
+
+    /**
+     * Hands the next sentences to their engine. Sentences for one engine are queued in a batch;
+     * when the next sentence needs a different engine, it waits until this batch has been spoken,
+     * so two engines never talk over each other.
+     */
+    private void topUp() {
+        if (current >= items.size()) return;
+        int start = Math.max(queuedUpTo, current);
+        if (start >= items.size()) return;
+        if (start > current && !engOf(start).equals(engOf(start - 1))) return;
+        String key = engOf(start);
+        Eng e = eng(key);
+        int end = Math.min(items.size(), current + AHEAD);
+        int i = start;
+        for (; i < end && engOf(i).equals(key); i++) {
+            Item it = items.get(i);
+            applyVoice(e, it);
+            e.tts.speak(it.text, TextToSpeech.QUEUE_ADD, new Bundle(), session + ":" + i);
+        }
+        if (i > queuedUpTo) queuedUpTo = i;
     }
 
     private int indexOf(String utteranceId, boolean[] sameSession) {
@@ -418,6 +488,10 @@ public class ReaderEngine {
                 playing = false;
                 current = items.size();
                 finished = true;
+            } else if (playing && i == queuedUpTo - 1) {
+                // this engine's batch is done: hand the next sentences to the next engine
+                current = i + 1;
+                topUp();
             }
         }
         if (finished) {
