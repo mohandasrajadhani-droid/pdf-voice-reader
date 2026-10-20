@@ -1,7 +1,9 @@
 package app.pdfvoicereader.malayalam;
 
 import android.Manifest;
+import android.content.Intent;
 import android.content.pm.PackageManager;
+import android.speech.tts.TextToSpeech;
 import android.os.Build;
 import android.os.Handler;
 import android.os.Looper;
@@ -56,6 +58,60 @@ public class ReaderTtsPlugin extends Plugin {
             r.put("voices", list);
             call.resolve(r);
         }));
+    }
+
+    @PluginMethod
+    public void getEngines(PluginCall call) {
+        engine.whenReady(() -> main.post(() -> {
+            JSObject r = new JSObject();
+            r.put("current", engine.currentEngine());
+            JSArray list = new JSArray();
+            for (Map<String, Object> e : engine.engines()) {
+                JSObject o = new JSObject();
+                for (Map.Entry<String, Object> x : e.entrySet()) o.put(x.getKey(), x.getValue());
+                list.put(o);
+            }
+            r.put("engines", list);
+            call.resolve(r);
+        }));
+    }
+
+    @PluginMethod
+    public void setEngine(PluginCall call) {
+        String pkg = call.getString("engine", "");
+        engine.setEngine(pkg);
+        engine.whenReady(() -> main.post(() -> {
+            JSObject r = new JSObject();
+            r.put("ok", engine.isReady());
+            r.put("current", engine.currentEngine());
+            call.resolve(r);
+        }));
+    }
+
+    /** Opens Android's screen for downloading voice data (install=true) or the text-to-speech settings. */
+    @PluginMethod
+    public void openTtsSettings(PluginCall call) {
+        boolean install = Boolean.TRUE.equals(call.getBoolean("install", true));
+        if (getActivity() == null) {
+            call.reject("no screen");
+            return;
+        }
+        String[] actions = install
+            ? new String[]{TextToSpeech.Engine.ACTION_INSTALL_TTS_DATA, "com.android.settings.TTS_SETTINGS"}
+            : new String[]{"com.android.settings.TTS_SETTINGS"};
+        for (String action : actions) {
+            try {
+                Intent i = new Intent(action);
+                String pkg = engine.currentEngine();
+                if (TextToSpeech.Engine.ACTION_INSTALL_TTS_DATA.equals(action) && pkg != null && !pkg.isEmpty()) i.setPackage(pkg);
+                i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                getActivity().startActivity(i);
+                call.resolve();
+                return;
+            } catch (Exception ignored) {
+            }
+        }
+        call.reject("Android's speech settings could not be opened");
     }
 
     @PluginMethod

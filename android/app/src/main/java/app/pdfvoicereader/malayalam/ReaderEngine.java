@@ -70,20 +70,47 @@ public class ReaderEngine {
     private String title = "PDF Voice Reader";
     private int totalPages = 0;
     private Listener listener;
+    private String enginePkg = "";
+    private int ttsGeneration = 0;
 
     private ReaderEngine(Context context) {
         ctx = context;
-        tts = new TextToSpeech(ctx, status -> {
+        createTts("");
+    }
+
+    /** Starts the speech engine: the phone's default one, or the engine with the given package name. */
+    private void createTts(String pkg) {
+        final int myGen;
+        synchronized (this) {
+            if (tts != null) {
+                try {
+                    tts.stop();
+                    tts.shutdown();
+                } catch (Exception ignored) {
+                }
+            }
+            ready = false;
+            initDone = false;
+            voiceCache.clear();
+            enginePkg = pkg == null ? "" : pkg;
+            myGen = ++ttsGeneration;
+        }
+        TextToSpeech.OnInitListener onInit = status -> {
             List<Runnable> run;
             synchronized (ReaderEngine.this) {
+                if (myGen != ttsGeneration) return;
                 ready = status == TextToSpeech.SUCCESS;
                 initDone = true;
                 run = new ArrayList<>(whenReady);
                 whenReady.clear();
             }
             for (Runnable r : run) r.run();
-        });
-        tts.setOnUtteranceProgressListener(new UtteranceProgressListener() {
+        };
+        TextToSpeech created = enginePkg.isEmpty() ? new TextToSpeech(ctx, onInit) : new TextToSpeech(ctx, onInit, enginePkg);
+        synchronized (this) {
+            tts = created;
+        }
+        created.setOnUtteranceProgressListener(new UtteranceProgressListener() {
             @Override
             public void onStart(String utteranceId) {
                 handleStart(utteranceId);
@@ -111,6 +138,38 @@ public class ReaderEngine {
                 // stopped on purpose (pause, stop, or a new queue); nothing to do
             }
         });
+    }
+
+    /** Switches to another speech engine installed on the phone (empty = the phone's default). */
+    public void setEngine(String pkg) {
+        synchronized (this) {
+            if (playing) {
+                playing = false;
+                paused = true;
+                session++;
+            }
+        }
+        createTts(pkg);
+    }
+
+    /** The speech engines installed on the phone, and which one is in use. */
+    public synchronized List<Map<String, Object>> engines() {
+        List<Map<String, Object>> out = new ArrayList<>();
+        try {
+            for (TextToSpeech.EngineInfo e : tts.getEngines()) {
+                Map<String, Object> m = new HashMap<>();
+                m.put("name", e.name);
+                m.put("label", e.label == null ? e.name : e.label);
+                out.add(m);
+            }
+        } catch (Exception ignored) {
+        }
+        return out;
+    }
+
+    public synchronized String currentEngine() {
+        if (!enginePkg.isEmpty()) return enginePkg;
+        return engineName();
     }
 
     public synchronized void setListener(Listener l) {

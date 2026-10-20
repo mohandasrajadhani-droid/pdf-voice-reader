@@ -2395,27 +2395,58 @@ function aiInitDoc(){
 /* ---------- Android app: Android's own speech engine, which keeps reading with the screen off ---------- */
 if(NATIVE_TTS){
   document.documentElement.classList.add("android-app");
-  const N={voices:[],gen:-1,lastPage:0,map:new Map()};
+  const N={voices:[],gen:-1,lastPage:0,map:new Map(),engines:[],engine:""};
   const LANGNAME={ml:"Malayalam",en:"English",hi:"Hindi",ta:"Tamil"};
-  function friendly(v){
-    const m=/^([a-z]{2,3})-([a-z]{2})-x-([a-z0-9]+)-(local|network)$/i.exec(v.name);
-    const ln=LANGNAME[(v.lang||"").slice(0,2).toLowerCase()]||v.lang;
-    if(m)return `${ln} voice ${m[3].toUpperCase()}`;
-    if(/-language$/i.test(v.name))return `${ln} (standard)`;
-    return v.name;
+  async function loadEngines(){
+    try{const r=await NATIVE_TTS.getEngines();N.engines=(r&&r.engines)||[];N.engine=(r&&r.current)||""}catch(e){N.engines=[]}
   }
   async function loadNativeVoices(){
     try{
       const r=await NATIVE_TTS.getVoices();
-      N.voices=(r&&r.voices||[]).filter(v=>!v.notInstalled).map(v=>({name:v.name,lang:v.lang,voiceURI:v.name,localService:!v.network,quality:v.quality,displayName:""}));
-      N.voices.forEach(v=>v.displayName=friendly(v));
-      N.voices.sort((a,b)=>(b.localService-a.localService)||((b.quality||0)-(a.quality||0)));
-      if(r&&r.ok===false)toast("Android's speech engine didn't start. Install “Speech Services by Google” from the Play Store.",true);
+      const list=(r&&r.voices||[]).map(v=>({name:v.name,lang:v.lang,voiceURI:v.name,localService:!v.network,quality:v.quality||0,notInstalled:!!v.notInstalled,displayName:""}));
+      // ready voices first, offline before online, best quality first; then number them per language
+      list.sort((a,b)=>(a.notInstalled-b.notInstalled)||(b.localService-a.localService)||(b.quality-a.quality)||a.name.localeCompare(b.name));
+      const count={};
+      for(const v of list){
+        const lang2=(v.lang||"").slice(0,2).toLowerCase();
+        const base=lang2==="en"?accentLabel(accentOf(v)):(LANGNAME[lang2]||v.lang||"Voice");
+        const key=lang2==="en"?accentOf(v):lang2;count[key]=(count[key]||0)+1;
+        v.displayName=`${base} ${count[key]}`+(v.quality>=400?" · high quality":"")+(v.notInstalled?" · not downloaded":"");
+      }
+      N.voices=list;
+      if(r&&r.ok===false)toast("This speech engine didn't start. Pick another engine in Voice settings, or install “Speech Services by Google” from the Play Store.",true);
     }catch(e){N.voices=[]}
     loadVoices();
   }
   loadVoices=function(){VOICES=N.voices;if(!$("sheet").hidden)renderVoiceSettings();if(!R.on&&!R.paused)idleHint()};
-  rank=function(l){return[...l].sort((a,b)=>((b.localService)-(a.localService))||((b.quality||0)-(a.quality||0)))};
+  rank=function(l){return[...l].sort((a,b)=>(a.notInstalled-b.notInstalled)||((b.localService)-(a.localService))||((b.quality||0)-(a.quality||0)))};
+  // Voice settings: choose the speech engine and get more voices
+  const _rvs=renderVoiceSettings;
+  renderVoiceSettings=function(){
+    _rvs();const box=$("vsBody");if(!box||!box.children.length)return;
+    const opts=N.engines.map(e=>`<option value="${esc(e.name)}"${e.name===N.engine?" selected":""}>${esc(e.label||e.name)}</option>`).join("");
+    const ml=VOICES.filter(isMl),mlReady=ml.filter(v=>!v.notInstalled).length,mlMissing=ml.length-mlReady;
+    const sec=document.createElement("div");sec.className="vs";
+    sec.innerHTML=`<h3>Speech engine and voices</h3>
+      ${N.engines.length>1?`<select id="vsEngine" aria-label="Speech engine">${opts}</select>`:`<div><b>${esc((N.engines[0]&&N.engines[0].label)||"Phone's speech engine")}</b></div>`}
+      <div class="muted">${VOICES.length} voices in this engine: ${mlReady} Malayalam ready${mlMissing?`, ${mlMissing} more to download`:""}, ${VOICES.filter(v=>isEn(v)&&!v.notInstalled).length} English. ${N.engines.length>1?"Each engine has its own voices. Google's engine has the Malayalam voices; Samsung's adds other English voices.":"Install another engine from the Play Store to get more voices."}</div>
+      <div class="muted">“High quality” voices sound most natural. Voices marked “needs internet” stream from Google and keep working with the screen off. “Not downloaded” voices need their voice data first.</div>
+      <div class="row"><button class="btn sm primary" data-natinstall>Download more voices</button><button class="btn sm" data-natsettings>Android speech settings</button></div>`;
+    box.insertBefore(sec,box.children[1]||null);
+  };
+  $("vsBody").addEventListener("change",async e=>{
+    if(e.target.id!=="vsEngine")return;
+    VS.engine=e.target.value;saveVS();
+    if(R.on||R.paused)stopReading("Speech engine changed. Tap Read aloud to start again.");
+    $("vsBody").insertAdjacentHTML("afterbegin",`<div class="note" id="engNote">Starting the speech engine…</div>`);
+    try{await NATIVE_TTS.setEngine({engine:VS.engine})}catch(err){}
+    VS.mlVoice="";VS.enVoice="";saveVS();
+    await loadEngines();await loadNativeVoices();renderVoiceSettings();
+  });
+  $("vsBody").addEventListener("click",e=>{
+    if(e.target.closest("[data-natinstall]"))NATIVE_TTS.openTtsSettings({install:true}).catch(()=>toast("Open Android Settings → Text-to-speech output → the engine's settings → Install voice data.",true));
+    if(e.target.closest("[data-natsettings]"))NATIVE_TTS.openTtsSettings({install:false}).catch(()=>toast("Open Android Settings and search for “Text-to-speech output”.",true));
+  });
   const itemFor=(tag,part,page)=>{const v=part.lang==="ml"?pickMl():pickEn();return v?{tag,text:part.text,lang:vLang(v),voice:v.name,rate:VS.rate,pitch:VS.pitch,page}:null};
   speakFrom=function(ci){
     const g=++R.gen;R.utt=null;
@@ -2464,7 +2495,8 @@ if(NATIVE_TTS){
   wakeOff=function(){if(!BG.running){NATIVE_TTS.keepScreenOn({on:false}).catch(()=>{});KA.mode=""}};
   screenStatus=function(){return"Reading continues with the screen off. Use the notification to pause or stop. The screen stays on only while OCR is working."};
   mediaOn=function(){};mediaOff=function(){};mediaMeta=function(){};
-  document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible")loadNativeVoices()});
+  // back from Android's settings: pick up newly downloaded voices
+  document.addEventListener("visibilitychange",async()=>{if(document.visibilityState==="visible"){await loadEngines();await loadNativeVoices()}});
   // Android Back button: close the panel, then go back to the document list, then leave the app
   try{
     const App=window.Capacitor.registerPlugin("App");
@@ -2474,7 +2506,10 @@ if(NATIVE_TTS){
       App.exitApp();
     });
   }catch(e){}
-  loadNativeVoices();
+  (async()=>{
+    if(VS.engine){try{await NATIVE_TTS.setEngine({engine:VS.engine})}catch(e){}}
+    await loadEngines();await loadNativeVoices();
+  })();
 }
 
 /* boot */
