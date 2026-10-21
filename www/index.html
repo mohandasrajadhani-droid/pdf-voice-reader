@@ -85,6 +85,29 @@ body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset
 .recents{display:grid;gap:10px;margin-top:12px}
 .rec{display:grid;grid-template-columns:auto 1fr auto;gap:14px;align-items:center;background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:12px 14px}
 .rec-ico{width:42px;height:52px;border-radius:6px;background:var(--surface-2);border:1px solid var(--line);display:grid;place-items:center;font-size:.72rem;font-weight:700;color:var(--green)}
+.rec-cover{width:52px;height:70px;border-radius:6px;background:var(--surface-2);border:1px solid var(--line);display:grid;place-items:center;font-size:.72rem;font-weight:700;color:var(--green);overflow:hidden;flex:none}
+.rec-cover img{width:100%;height:100%;object-fit:cover;object-position:top;display:block;background:#fff}
+.rec-prog{height:6px;border-radius:3px;background:var(--surface-2);overflow:hidden;margin-top:6px;max-width:280px}
+.rec-prog i{display:block;height:100%;background:var(--green)}
+.shelf-tools{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.shelf-tools .search{flex:1 1 160px}
+.shelf-note{font-size:.85rem;color:var(--muted);margin-top:8px}
+.toc,.bms{display:grid;gap:4px;max-height:340px;overflow:auto}
+.tocit,.bm{display:flex;gap:10px;align-items:center;justify-content:space-between;text-align:left;border:1px solid var(--line);background:var(--surface);border-radius:8px;padding:9px 10px;cursor:pointer;font:inherit;color:inherit;min-height:44px}
+.tocit.cur{border-color:var(--green);background:color-mix(in srgb,var(--green) 12%,var(--surface))}
+.tocit span:first-child,.bm-t{min-width:0;overflow-wrap:anywhere;font-family:var(--f-text)}
+.bm-t small{display:block;color:var(--muted);font-family:var(--f-body);font-size:.8rem}
+.bm-row{display:flex;gap:6px;align-items:stretch}.bm-row .bm{flex:1;min-width:0}
+.exp{display:grid;gap:6px}
+.sleep{position:relative}.sleep.on{background:var(--green);color:var(--green-ink);border-color:var(--green)}
+.sleep .sl{position:absolute;bottom:-2px;left:50%;transform:translateX(-50%);font-size:.6rem;font-weight:800;line-height:1;background:var(--surface);color:var(--ink);border-radius:6px;padding:1px 3px;white-space:nowrap}
+.sleep.on .sl{background:var(--ink);color:var(--bg)}
+.sheet.pop{align-items:flex-end;justify-content:center}
+.sheet.pop .sheet-card{height:auto;max-height:85%;width:min(440px,100%);border-radius:16px 16px 0 0;box-shadow:0 -8px 30px rgba(0,0,0,.25)}
+.sl-opts{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.sl-opts .btn{min-height:48px}
+.sl-opts .wide{grid-column:1/-1}
+.hfnote{cursor:default}
 .rec-main{min-width:0}
 .rec-name{font-weight:700;overflow-wrap:anywhere}
 .rec-meta{font-size:.88rem;color:var(--muted);display:flex;flex-wrap:wrap;gap:4px 12px;margin-top:2px}
@@ -337,13 +360,14 @@ details.vsd summary{cursor:pointer;font-weight:700;min-height:40px;display:flex;
   .tab{flex:1;min-height:40px;border:0;background:transparent;border-radius:8px;font-weight:700;font-size:.9rem;cursor:pointer;color:var(--muted);padding:0 4px}
   .tab[aria-selected="true"]{background:var(--green);color:var(--green-ink)}
   .tab-long{display:none}
+  .tab{font-size:.85rem;padding:0 2px}
   #reader>.summary{display:none}
   #reader>.ocrbar{margin:0 max(8px,env(safe-area-inset-left,0px)) 6px;padding:6px 6px 8px 10px;gap:4px}
   .ocrbar-t{font-size:.82rem}
   #ocrBarBtn{min-height:36px;padding:0 10px}
   .ocrwait{min-height:0;padding:20px 14px}
   #reader>.rmain{flex:1 1 auto;min-height:0;display:flex;flex-direction:column;padding:0 max(8px,env(safe-area-inset-left,0px)) 6px;gap:0}
-  #reader[data-tab=ask]>.rmain,#reader[data-tab=tools]>.rmain{display:none}
+  #reader[data-tab=ask]>.rmain,#reader[data-tab=tools]>.rmain,#reader[data-tab=book]>.rmain{display:none}
   .rmain>.pane{flex:1 1 auto;min-height:0}
   .rmain>.pane.hide-m{display:none}
   #textPane{display:flex;flex-direction:column;overflow:hidden}
@@ -363,10 +387,12 @@ details.vsd summary{cursor:pointer;font-weight:700;min-height:40px;display:flex;
   #pagePane{display:flex;flex-direction:column;overflow:hidden}
   #pagePane .pane-h{padding:4px 8px}
   .preview-box{flex:1 1 auto;min-height:0!important;max-height:none!important;padding:6px}
-  #aiPanel,#toolsBox{flex:1 1 auto;min-height:0;overflow:auto;margin:0 max(8px,env(safe-area-inset-left,0px)) 6px;-webkit-overflow-scrolling:touch}
-  #aiPanel.hide-m,#toolsBox.hide-m,#textPane.hide-m,#pagePane.hide-m{display:none}
+  #aiPanel,#toolsBox,#bookBox{flex:1 1 auto;min-height:0;overflow:auto;margin:0 max(8px,env(safe-area-inset-left,0px)) 6px;-webkit-overflow-scrolling:touch}
+  #aiPanel.hide-m,#toolsBox.hide-m,#bookBox.hide-m,#textPane.hide-m,#pagePane.hide-m{display:none}
   #aiPanel{padding:12px;gap:10px;align-content:start;border-radius:var(--r)}
-  #toolsBox{padding:0;align-content:start;grid-template-columns:minmax(0,1fr);gap:8px}
+  #toolsBox,#bookBox{padding:0;align-content:start;grid-template-columns:minmax(0,1fr);gap:8px}
+  .toc,.bms{max-height:none}
+  #bmBtn{width:40px;min-height:44px;padding:0;flex:none}
   .ai-h h2{font-size:1.1rem}
   .ai-acts .btn{flex:1 1 calc(50% - 8px)}
   .ai-acts .btn[data-ai=fixocr]{flex-basis:100%}
@@ -391,7 +417,7 @@ details.vsd summary{cursor:pointer;font-weight:700;min-height:40px;display:flex;
   .vbtn-t{display:none}
   .toast{top:calc(56px + env(safe-area-inset-top,0px));font-size:.9rem}
 }
-@media (max-width:360px){.ctl{width:40px;height:40px;min-height:40px}#stopBtn{display:none}.speed{min-width:40px}.pane-h .seg button{padding:0 7px}}
+@media (max-width:360px){.ctl{width:40px;height:40px;min-height:40px}#stopBtn{display:none}.tab{font-size:.8rem}.speed{min-width:40px}.pane-h .seg button{padding:0 7px}}
 @media (max-width:700px) and (max-height:560px){.ptrack{display:none}#reader>.tabs{margin-block:4px}.tab{min-height:36px}}
 </style>
 
@@ -420,8 +446,9 @@ details.vsd summary{cursor:pointer;font-weight:700;min-height:40px;display:flex;
     </section>
 
     <section>
-      <div class="sec-h"><h2>Recent documents</h2><input class="search" id="recSearch" type="search" placeholder="Search documents" aria-label="Search recent documents"></div>
+      <div class="sec-h"><h2>Your bookshelf</h2><div class="shelf-tools"><input class="search" id="recSearch" type="search" placeholder="Search books" aria-label="Search your books"><select class="sel" id="recSort" aria-label="Sort books"><option value="opened">Last read</option><option value="name">Name</option><option value="added">Date added</option></select></div></div>
       <div class="recents" id="recents"></div>
+      <div class="shelf-note" id="shelfNote"></div>
     </section>
 
     <section class="roadmap" aria-label="Build stages">
@@ -442,6 +469,7 @@ details.vsd summary{cursor:pointer;font-weight:700;min-height:40px;display:flex;
     <div class="rbar">
       <button class="btn sm" id="backBtn" aria-label="Back to documents">←<span class="back-t"> Documents</span></button>
       <div class="doc-name" id="docName"></div>
+      <button class="btn sm icon-btn" id="bmBtn" aria-label="Bookmark this place" title="Bookmark this place"><svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3h12v18l-6-4.5L6 21z" stroke="currentColor" stroke-width="2" fill="none" stroke-linejoin="round"/></svg></button>
       <div class="pager">
         <button class="btn sm icon-btn" id="prevBtn" aria-label="Previous page">‹</button>
         <input id="pageIn" type="number" min="1" aria-label="Page number">
@@ -452,6 +480,7 @@ details.vsd summary{cursor:pointer;font-weight:700;min-height:40px;display:flex;
     <div class="tabs" role="tablist" aria-label="Reader sections">
       <button class="tab" role="tab" id="tabText" aria-selected="true">Text</button>
       <button class="tab" role="tab" id="tabPage" aria-selected="false">Page</button>
+      <button class="tab" role="tab" id="tabBook" aria-selected="false" aria-label="Chapters, bookmarks and search">Book</button>
       <button class="tab" role="tab" id="tabAsk" aria-selected="false" aria-label="Ask Claude">Ask<span class="tab-long"> Claude</span></button>
       <button class="tab" role="tab" id="tabTools" aria-selected="false">Tools</button>
     </div>
@@ -528,6 +557,22 @@ details.vsd summary{cursor:pointer;font-weight:700;min-height:40px;display:flex;
       <p class="muted" style="margin:0">Nothing is sent until you tap a button. Then the text you chose goes to Claude on your Claude account. Explain and Translate use the selected text, or the current page. Answers come only from this document, with page numbers you can tap. OCR and voices stay on this device.</p>
     </section>
 
+    <div class="tools" id="bookBox">
+      <div class="tool">
+        <h3>Chapters</h3>
+        <div class="toc" id="toc"></div>
+      </div>
+      <div class="tool">
+        <h3>Bookmarks</h3>
+        <div class="row"><button class="btn sm primary" id="bmAdd">+ Bookmark this place</button></div>
+        <div class="bms" id="bms"></div>
+      </div>
+      <div class="tool">
+        <h3>Search in this book</h3>
+        <div class="row"><input type="search" id="findIn" placeholder="Word in Malayalam or English" aria-label="Search text"><button class="btn sm" id="findBtn">Search</button></div>
+        <div class="hits" id="hits"></div>
+      </div>
+    </div>
     <div class="tools" id="toolsBox">
       <div class="tool" id="ocrTool">
         <h3>Read scanned pages (OCR)</h3>
@@ -540,20 +585,23 @@ details.vsd summary{cursor:pointer;font-weight:700;min-height:40px;display:flex;
         <label class="chk" for="ocrAuto"><input type="checkbox" id="ocrAuto"> Read scanned pages automatically when a PDF opens</label>
         <label class="chk" for="ocrAll"><input type="checkbox" id="ocrAll"> Also OCR pages that already have PDF text</label>
         <label class="chk" for="ocrEnhance"><input type="checkbox" id="ocrEnhance"> Boost faint or grey scans</label>
+        <label class="chk" for="hfOn"><input type="checkbox" id="hfOn"> Leave out page numbers and the book or chapter title repeated at the top or bottom of pages</label>
         <div class="muted" id="ocrModel">Reading models: Malayalam and English, built into this file. No download needed.</div>
       </div>
       <div class="tool">
-        <h3>Search in this document</h3>
-        <div class="row"><input type="search" id="findIn" placeholder="Word in Malayalam or English" aria-label="Search text"><button class="btn sm" id="findBtn">Search</button></div>
-        <div class="hits" id="hits"></div>
-      </div>
-      <div class="tool">
-        <h3>Page range</h3>
+        <h3>Copy or save pages</h3>
         <div class="row">
           <label for="rFrom">From</label><input type="number" id="rFrom" min="1">
           <label for="rTo">to</label><input type="number" id="rTo" min="1">
-          <button class="btn sm" id="copyRange">Copy text</button>
+          <button class="btn sm" id="rChapter" hidden>This chapter</button>
         </div>
+        <div class="row">
+          <button class="btn sm" id="copyRange">Copy text</button>
+          <button class="btn sm" id="saveDocx">Save as Word</button>
+          <button class="btn sm" id="saveTxt">Save as text</button>
+          <button class="btn sm primary" id="saveAudio">Save as audio</button>
+        </div>
+        <div class="exp" id="expBox" hidden role="status" aria-live="polite"><div class="muted" id="expMsg"></div><div class="bar"><i id="expBar"></i></div><div class="row" id="expAct"></div></div>
         <div class="muted" id="rangeInfo"></div>
         <textarea id="copyBuf" class="txt" style="min-height:120px;max-height:200px;border:1px solid var(--line);border-radius:8px" hidden aria-label="Text of the selected pages"></textarea>
       </div>
@@ -576,6 +624,7 @@ details.vsd summary{cursor:pointer;font-weight:700;min-height:40px;display:flex;
           <div class="ptrack"><span id="tNow">0:00</span><div class="lprog-hit" id="lprogBar" role="slider" tabindex="0" aria-label="Position in this page (estimated)" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><div class="lprog"><i id="lprog"></i></div></div><span id="tAll" title="Estimated listening time for this page">–:––</span></div></div>
         <div class="side">
           <button class="btn ctl" id="stopBtn" aria-label="Stop reading" disabled><svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="5" width="14" height="14" rx="2" fill="currentColor"/></svg></button>
+          <button class="btn ctl sleep" id="sleepBtn" aria-label="Sleep timer: off"><svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z" stroke="currentColor" stroke-width="2" fill="none" stroke-linejoin="round"/></svg><span class="sl" id="sleepLbl" hidden></span></button>
           <button class="btn sm speed" id="speedBtn" aria-label="Reading speed, tap to change">1×</button>
           <button class="btn" id="voiceBtn" aria-label="Voice settings"><svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h10M18 7h2M4 17h4M12 17h8" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="16" cy="7" r="2.2" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="10" cy="17" r="2.2" fill="none" stroke="currentColor" stroke-width="2"/></svg><span class="vbtn-t">Voice settings</span></button>
         </div>
@@ -588,6 +637,14 @@ details.vsd summary{cursor:pointer;font-weight:700;min-height:40px;display:flex;
   <div class="sheet-card">
     <div class="sheet-h"><h2 id="sheetTitle">Voice settings</h2><button class="btn sm" id="sheetClose">Done</button></div>
     <div id="vsBody"></div>
+  </div>
+</div>
+
+<div class="sheet pop" id="sleepSheet" hidden role="dialog" aria-modal="true" aria-labelledby="sleepTitle">
+  <div class="sheet-card">
+    <div class="sheet-h"><h2 id="sleepTitle">Sleep timer</h2><button class="btn sm" id="sleepClose">Done</button></div>
+    <div class="muted" id="sleepNow"></div>
+    <div class="sl-opts" id="sleepOpts"></div>
   </div>
 </div>
 
@@ -1077,18 +1134,36 @@ function show(view){$("home").hidden=view!=="home";$("reader").hidden=view!=="re
 
 /* ---------- home ---------- */
 async function renderRecents(){
-  const list=((await getAllMeta())||[]).sort((a,b)=>(b.opened||0)-(a.opened||0));
+  const sort=$("recSort").value;
+  const list=((await getAllMeta())||[]).sort((a,b)=>sort==="name"?a.name.localeCompare(b.name):sort==="added"?(b.added||0)-(a.added||0):(b.opened||0)-(a.opened||0));
   const q=$("recSearch").value.trim().toLowerCase();
   const items=list.filter(m=>!q||m.name.toLowerCase().includes(q));
   const box=$("recents");
-  if(!list.length){box.innerHTML=`<div class="empty">No documents yet. Open a PDF or try the sample, and it will appear here so you can continue later.</div>`;return}
-  if(!items.length){box.innerHTML=`<div class="empty">No documents match “${esc(q)}”.</div>`;return}
-  box.innerHTML=items.map(m=>`<div class="rec">
-    <div class="rec-ico" aria-hidden="true">PDF</div>
-    <div class="rec-main"><div class="rec-name">${esc(m.name)}</div>
-      <div class="rec-meta"><span>${m.pageCount} page${m.pageCount>1?"s":""}</span><span>${LANG_LABEL[m.lang]||""}</span>${m.needOcr?`<span>${m.needOcr} need OCR</span>`:""}<span>Last at page ${m.lastPage||1}${m.lastSentence?`, sentence ${m.lastSentence+1}`:""}</span><span>${fmtDate(m.opened)}</span></div></div>
-    <div class="rec-act"><button class="btn sm primary" data-open="${m.id}">${m.lastPage>1?"Continue":"Open"}</button><button class="btn sm ghost danger" data-del="${m.id}" aria-label="Delete ${esc(m.name)}">Delete</button></div>
-  </div>`).join("");
+  if(!list.length){box.innerHTML=`<div class="empty">Your bookshelf is empty. Open a PDF or try the sample. Every book you open is kept here with its OCR text, bookmarks and the place you stopped.</div>`;$("shelfNote").textContent="";return}
+  if(!items.length){box.innerHTML=`<div class="empty">No books match “${esc(q)}”.</div>`;return}
+  box.innerHTML=items.map(m=>{
+    const pct=m.pageCount?Math.round(((m.lastPage||1)-(m.lastPage>1||m.lastSentence?0:1))/m.pageCount*100):0;
+    const bm=(m.bookmarks||[]).length;
+    return `<div class="rec">
+    <div class="rec-cover" aria-hidden="true">${m.cover?`<img src="${m.cover}" alt="">`:"PDF"}</div>
+    <div class="rec-main"><div class="rec-name">${esc(m.name.replace(/\.pdf$/i,""))}</div>
+      <div class="rec-prog" role="img" aria-label="${pct}% read"><i style="width:${Math.max(pct,m.lastPage>1||m.lastSentence?2:0)}%"></i></div>
+      <div class="rec-meta"><span>Page ${m.lastPage||1} of ${m.pageCount}${m.lastSentence?`, sentence ${m.lastSentence+1}`:""}${pct?` · ${pct}%`:""}</span>${m.needOcr?`<span>${m.needOcr} page${m.needOcr>1?"s":""} still need OCR</span>`:""}${bm?`<span>${bm} bookmark${bm>1?"s":""}</span>`:""}<span>${LANG_LABEL[m.lang]||""}</span><span>${fmtDate(m.opened)}</span></div></div>
+    <div class="rec-act"><button class="btn sm primary" data-open="${m.id}">${m.lastPage>1||m.lastSentence?"Continue":"Open"}</button><button class="btn sm ghost danger" data-del="${m.id}" aria-label="Delete ${esc(m.name)}">Delete</button></div>
+  </div>`}).join("");
+  try{if(navigator.storage&&navigator.storage.estimate){const e=await navigator.storage.estimate();$("shelfNote").textContent=`${list.length} book${list.length>1?"s":""} · ${fmtBytes(e.usage||0)} used on this device.`}}catch(e){}
+}
+$("recSort").addEventListener("change",renderRecents);
+async function makeCover(){
+  try{
+    if(!S.pdf||!S.meta||S.meta.cover)return;
+    const id=S.meta.id,pg=await S.pdf.getPage(1),v1=pg.getViewport({scale:1}),vp=pg.getViewport({scale:140/v1.width});
+    const c=document.createElement("canvas");c.width=Math.ceil(vp.width);c.height=Math.ceil(vp.height);
+    const x=c.getContext("2d");x.fillStyle="#fff";x.fillRect(0,0,c.width,c.height);
+    await pg.render({canvasContext:x,viewport:vp}).promise;
+    if(!S.meta||S.meta.id!==id)return;
+    S.meta.cover=c.toDataURL("image/jpeg",.7);c.width=c.height=0;putMeta(S.meta);
+  }catch(e){}
 }
 $("recents").addEventListener("click",async e=>{
   const o=e.target.closest("[data-open]"),d=e.target.closest("[data-del]");
@@ -1139,6 +1214,7 @@ async function openBuffer(buf,info){
     else toast("This PDF is damaged and could not be opened. Try re-downloading or re-exporting it.",true);
     return}
   const prev=await getMeta(id), prevData=prev?await getData(id):null;
+  S.outline=[];
   let pages;
   if(prevData&&prevData.pages&&prevData.pages.length===pdf.numPages){pages=prevData.pages;pages.forEach(p=>{if(!p.source){p.source="pdf";p.pdfText=p.orig}})}
   else{
@@ -1153,7 +1229,9 @@ async function openBuffer(buf,info){
   }
   setProg(1,"Done");
   const meta={id,name:info.name,size:info.size,pageCount:pdf.numPages,added:prev?prev.added:Date.now(),opened:Date.now(),
-    lastPage:prev?Math.min(prev.lastPage||1,pdf.numPages):1,lastSentence:prev?prev.lastSentence||0:0,lang:"none",needOcr:0};
+    lastPage:prev?Math.min(prev.lastPage||1,pdf.numPages):1,lastSentence:prev?prev.lastSentence||0:0,lang:"none",needOcr:0,
+    bookmarks:prev&&prev.bookmarks||[],cover:prev&&prev.cover||""};
+  try{if(navigator.storage&&navigator.storage.persist)navigator.storage.persist().catch(()=>{})}catch(e){}
   S.pdf=pdf;S.meta=meta;S.pages=pages;S.buf=buf;
   updateMetaSummary();
   let stored=buf.byteLength<=STORE_MAX&&!!(await putData({id,pages,buf:buf.byteLength<=STORE_MAX?buf:null}));
@@ -1188,6 +1266,9 @@ function enterReader(page){
   $("hits").innerHTML="";$("findIn").value="";$("copyBuf").hidden=true;$("rangeInfo").textContent="";
   renderSummary();renderRail();show("reader");S.zoom=0;S.viewChosen=false;$("pinfo").open=window.innerWidth>700;setView("edit");aiInitDoc();setTab("text");goTo(page||1);
   if(OCRSET.auto){const l=bgPending();if(l.length)bgStart(orderFrom(l,S.cur))}bgUI();
+  applyHF();renderBookmarks();renderToc();
+  const pdfNow=S.pdf;loadOutline(pdfNow).then(o=>{if(S.pdf!==pdfNow)return;S.outline=o;renderToc();rangeChapterBtn()});
+  setTimeout(makeCover,1200);
   const d=$("docInfo");d.textContent=`${fmtBytes(S.meta.size)} · added ${fmtDate(S.meta.added)}. `+(S.stored?"Saved in this browser only, with your text corrections.":"Too large to keep on this device; corrections are saved, but you will need to open the file again next time.");
 }
 function renderSummary(){
@@ -1223,6 +1304,7 @@ function goTo(n){
   const cb=$("rail").children[n-1];if(cb)cb.scrollIntoView({block:"nearest",inline:"nearest"});
   showText();renderPreview();
   if(S.meta.lastPage!==n)S.meta.lastSentence=0;S.meta.lastPage=n;putMeta(S.meta);
+  if(S.outline&&S.outline.length)markToc();
 }
 function showText(){
   const p=S.pages[S.cur-1];
@@ -1250,6 +1332,7 @@ function showText(){
     else if(p.fixes) n.push(`<div class="note ok">Removed ${p.fixes} stray space${p.fixes>1?"s":""} inside Malayalam words.</div>`);
   }
   if(p.ocrError) n.push(`<div class="note bad">Last OCR attempt failed: ${esc(p.ocrError)}</div>`);
+  if(p.hfCut&&p.hfCut.length&&!p.edited) n.push(`<div class="note hfnote">Left out of the text and reading: ${p.hfCut.map(l=>`“${esc(l.length>50?l.slice(0,50)+"…":l)}”`).join(", ")} (page number or repeated title). Turn this off in Tools if you want them.</div>`);
   $("notes").innerHTML=n.join("");
   applyTextVisibility();
   if(typeof R!=="undefined"){if(!R.on&&!R.paused)idleHint();else updatePlayUI();renderAlong()}
@@ -1261,7 +1344,7 @@ $("txt").addEventListener("input",()=>{
 });
 $("restoreBtn").onclick=()=>{const p=S.pages[S.cur-1];p.text=p.orig;p.edited=false;p.lang=detectLang(p.text);saveDoc();showText();toast("Original text restored")};
 $("langSel").onchange=()=>{S.pages[S.cur-1].langOverride=$("langSel").value;saveDoc();showText()};
-async function saveDoc(){updateMetaSummary();renderSummary();renderRail();
+async function saveDoc(){applyHF();updateMetaSummary();renderSummary();renderRail();
   [...$("rail").children].forEach((b,i)=>b.classList.toggle("cur",i+1===S.cur));
   await putData({id:S.meta.id,pages:S.pages,buf:S.stored?S.buf:null});await putMeta(S.meta)}
 
@@ -1298,13 +1381,13 @@ document.addEventListener("keydown",e=>{
 $("backBtn").onclick=$("homeBtn").onclick=()=>{bgReset();if(typeof R!=="undefined")stopReading("");if(S.pdf){clearTimeout(S.saveT);if(S.meta)saveDoc()}show("home");renderRecents()};
 
 /* mobile tabs */
-const TABS={text:"textPane",page:"pagePane",ask:"aiPanel",tools:"toolsBox"};
+const TABS={text:"textPane",page:"pagePane",book:"bookBox",ask:"aiPanel",tools:"toolsBox"};
 function setTab(t){S.tab=t;$("reader").dataset.tab=t;
   for(const k in TABS){$("tab"+k[0].toUpperCase()+k.slice(1)).setAttribute("aria-selected",k===t);$(TABS[k]).classList.toggle("hide-m",k!==t)}
   document.body.classList.toggle("tab-text",t==="text");
   if(t==="page")renderPreview();
   if(window.innerWidth<=1000){const tb=document.querySelector(".tabs");if(tb.getBoundingClientRect().top<0)window.scrollTo(0,window.scrollY+tb.getBoundingClientRect().top-64)}}
-$("tabText").onclick=()=>setTab("text");$("tabPage").onclick=()=>setTab("page");$("tabAsk").onclick=()=>setTab("ask");$("tabTools").onclick=()=>setTab("tools");
+$("tabBook").onclick=()=>{setTab("book");renderToc()};$("tabText").onclick=()=>setTab("text");$("tabPage").onclick=()=>setTab("page");$("tabAsk").onclick=()=>setTab("ask");$("tabTools").onclick=()=>setTab("tools");
 
 /* search */
 function doFind(){
@@ -1319,6 +1402,114 @@ function doFind(){
 }
 $("findBtn").onclick=doFind;$("findIn").addEventListener("keydown",e=>{if(e.key==="Enter")doFind()});
 $("hits").addEventListener("click",e=>{const b=e.target.closest("[data-p]");if(b){goTo(+b.dataset.p);setTab("text")}});
+
+/* ---------- page numbers and running titles (headers / footers) ---------- */
+const HF={on:true};
+try{const o=JSON.parse(localStorage.getItem("pvr-hf")||"{}");if(typeof o.on==="boolean")HF.on=o.on}catch(e){}
+const PAGE_NO=/^[\s\-–—_.·•|()\[\]]*(?:(?:page|pg\.?|p\.|പേജ്|പുറം)\s*)?(?:[0-9൦-൯]{1,4}|(?=[ivxlc])c{0,3}(?:xc|xl|l?x{0,3})(?:ix|iv|v?i{0,3}))(?:\s*(?:of|\/)\s*[0-9൦-൯]{1,4})?[\s\-–—_.·•|()\[\]]*$/i;
+function hfKey(line){return line.toLowerCase().replace(/[0-9൦-൯]+/g,"").replace(/[\s\p{P}\p{S}]+/gu,"")}
+function lev(a,b){if(a===b)return 0;if(!a.length)return b.length;if(!b.length)return a.length;let prev=Array.from({length:b.length+1},(_,i)=>i);
+  for(let i=1;i<=a.length;i++){const cur=[i];for(let j=1;j<=b.length;j++)cur[j]=Math.min(prev[j]+1,cur[j-1]+1,prev[j-1]+(a[i-1]===b[j-1]?0:1));prev=cur}return prev[b.length]}
+const similar=(a,b)=>Math.abs(a.length-b.length)<=Math.max(2,a.length*.25)&&lev(a,b)<=Math.max(1,Math.floor(Math.max(a.length,b.length)*.22));
+function baseText(p){return p.source==="ocr"&&p.ocr?p.ocr.text:p.pdfText||""}
+function edgeLines(text){const L=text.split("\n");const idx=[];for(let i=0;i<L.length&&idx.length<2;i++)if(L[i].trim())idx.push(i);const top=idx.slice();idx.length=0;for(let i=L.length-1;i>=0&&idx.length<2;i--)if(L[i].trim())idx.push(i);return{L,top,bottom:idx}}
+/* finds lines repeated at the top or bottom of many pages (the book or chapter title), plus bare page numbers, and leaves them out */
+function applyHF(){
+  if(!S.pages||!S.pages.length)return;
+  const P=S.pages,groups=[];
+  if(HF.on){
+    const counts=new Map(),mid=new Map();
+    P.forEach(p=>{if(p.edited)return;const{L,top,bottom}=edgeLines(baseText(p));const seen=new Set(),edge=new Set([...top,...bottom]);
+      for(const i of edge){const s=L[i].trim();if(s.split(/\s+/).length>10||s.length>80)continue;const k=hfKey(s);if(k.length<3||seen.has(k))continue;seen.add(k);counts.set(k,(counts.get(k)||0)+1)}
+      // the same line inside the page body means it is ordinary text, not a running title
+      const ms=new Set();L.forEach((l,i)=>{if(edge.has(i))return;const s=l.trim();if(!s||s.length>80)return;const k=hfKey(s);if(k.length>=3&&!ms.has(k)){ms.add(k);mid.set(k,(mid.get(k)||0)+1)}})});
+    const withText=P.filter(p=>baseText(p).trim()).length;
+    const need=Math.max(3,Math.ceil(withText*.15));
+    // merge near-identical keys (OCR reads the same title slightly differently on each page)
+    const keys=[...counts.entries()].sort((a,b)=>b[1]-a[1]);
+    for(const[k,c]of keys){const g=groups.find(g=>similar(g.k,k));if(g){g.n+=c;g.m+=mid.get(k)||0}else if(groups.length<40)groups.push({k,n:c,m:mid.get(k)||0})}
+    for(let i=groups.length-1;i>=0;i--)if(groups[i].n<need||groups[i].m>groups[i].n*.2)groups.splice(i,1);
+  }
+  const isRunning=s=>{const k=hfKey(s);return k.length>=3&&groups.some(g=>g.k===k||similar(g.k,k))};
+  P.forEach((p,pi)=>{
+    if(p.edited)return;
+    const src=baseText(p);
+    let cut=[];let out=src;
+    if(HF.on){
+      const L=src.split("\n");let a=0,b=L.length-1;
+      const strip=(i,edge)=>{const s=L[i].trim();if(!s)return true;if(PAGE_NO.test(s)||isRunning(s)){cut.push(s);return true}return false};
+      for(let n=0;a<=b&&n<3;){if(!L[a].trim()){a++;continue}if(strip(a))a++,n++;else break}
+      for(let n=0;b>=a&&n<3;){if(!L[b].trim()){b--;continue}if(strip(b))b--,n++;else break}
+      out=L.slice(a,b+1).join("\n").trim();
+      if(!out&&cut.length){out=src;cut=[]}
+    }
+    if(p.text!==out){const isCur=pi+1===S.cur;p.text=p.orig=out;p.lang=detectLang(out);p.hfCut=cut;if(isCur&&document.activeElement!==$("txt")){$("txt").value=out}}
+    else p.hfCut=cut;
+  });
+}
+$("hfOn").checked=HF.on;
+$("hfOn").onchange=()=>{HF.on=$("hfOn").checked;try{localStorage.setItem("pvr-hf",JSON.stringify(HF))}catch(e){}if(S.pages&&S.pages.length){saveDoc();showText()}toast(HF.on?"Page numbers and repeated titles are left out":"Page numbers and titles are kept")};
+
+/* ---------- chapters ---------- */
+async function loadOutline(pdf){
+  let ol;try{ol=await pdf.getOutline()}catch(e){return[]}
+  if(!ol||!ol.length)return[];
+  const out=[];
+  const walk=async(list,depth)=>{for(const o of list){if(out.length>=500)return;let page=0;
+    try{let d=o.dest;if(typeof d==="string")d=await pdf.getDestination(d);if(Array.isArray(d)&&d[0]!=null)page=typeof d[0]==="number"?d[0]+1:(await pdf.getPageIndex(d[0]))+1}catch(e){}
+    if(page)out.push({title:(o.title||"").replace(/\s+/g," ").trim()||`Page ${page}`,page,depth});
+    if(o.items&&o.items.length&&depth<2)await walk(o.items,depth+1)}};
+  await walk(ol,0);
+  return out;
+}
+function chapterAt(page){
+  const ol=S.outline||[];if(!ol.length)return null;
+  let k=-1;ol.forEach((o,i)=>{if(o.page<=page)k=i});
+  if(k<0)return null;
+  const next=ol.slice(k+1).find(o=>o.page>page);
+  return{i:k,title:ol[k].title,from:ol[k].page,to:next?Math.max(page,next.page-1):S.pages.length};
+}
+function renderToc(){
+  const box=$("toc");if(!box)return;const ol=S.outline||[];
+  if(!ol.length){box.innerHTML=`<div class="muted">This PDF has no chapter list. Use bookmarks to mark the places you want to come back to.</div>`;return}
+  const c=chapterAt(S.cur);
+  box.innerHTML=ol.map((o,i)=>`<button class="tocit${c&&c.i===i?" cur":""}" data-p="${o.page}" style="padding-left:${10+o.depth*18}px"${c&&c.i===i?' aria-current="true"':""}><span>${esc(o.title)}</span><span class="muted">p.${o.page}</span></button>`).join("");
+}
+function markToc(){const c=chapterAt(S.cur);[...$("toc").querySelectorAll(".tocit")].forEach((b,i)=>{b.classList.toggle("cur",!!c&&c.i===i);if(c&&c.i===i)b.setAttribute("aria-current","true");else b.removeAttribute("aria-current")})}
+$("toc").addEventListener("click",e=>{const b=e.target.closest("[data-p]");if(!b)return;goTo(+b.dataset.p);setTab("text");toast(`Chapter: ${b.querySelector("span").textContent}`)});
+function rangeChapterBtn(){$("rChapter").hidden=!(S.outline&&S.outline.length)}
+$("rChapter").onclick=()=>{const c=chapterAt(S.cur);if(!c)return;$("rFrom").value=c.from;$("rTo").value=c.to;rangeText();toast(`Pages ${c.from}–${c.to}: ${c.title}`)};
+
+/* ---------- bookmarks ---------- */
+function curSentence(){
+  if(typeof R!=="undefined"&&!R.custom&&(R.on||R.paused)&&R.page===S.cur)return R.ci||0;
+  return S.meta&&S.meta.lastPage===S.cur?S.meta.lastSentence||0:0;
+}
+function sentenceText(page,ci){
+  try{const b=buildChunks(page),ch=b.chunks[Math.min(ci,b.chunks.length-1)];if(ch)return ch.parts.map(x=>x.text).join(" ")}catch(e){}
+  return(S.pages[page-1].text||"");
+}
+function addBookmark(){
+  if(!S.meta)return;
+  const ci=curSentence(),bms=S.meta.bookmarks||(S.meta.bookmarks=[]);
+  if(bms.some(x=>x.page===S.cur&&x.s===ci)){toast("This place is already bookmarked");return}
+  const snip=sentenceText(S.cur,ci).replace(/\s+/g," ").trim().slice(0,100);
+  bms.push({page:S.cur,s:ci,text:snip,t:Date.now()});bms.sort((a,b)=>a.page-b.page||a.s-b.s);
+  putMeta(S.meta);renderBookmarks();toast(`Bookmarked page ${S.cur}${ci?`, sentence ${ci+1}`:""}`);
+}
+function renderBookmarks(){
+  const box=$("bms");if(!box||!S.meta)return;const bms=S.meta.bookmarks||[];
+  box.innerHTML=bms.length?bms.map((b,i)=>`<div class="bm-row"><button class="bm" data-bm="${i}"><span class="bm-t">${esc(b.text||"(no text)")}<small>Page ${b.page}${b.s?` · sentence ${b.s+1}`:""} · ${fmtDate(b.t)}</small></span></button><button class="btn sm icon-btn ghost danger" data-bmdel="${i}" aria-label="Remove bookmark on page ${b.page}">✕</button></div>`).join("")
+    :`<div class="muted">No bookmarks yet. Tap the bookmark button at the top, or the button above, to mark the sentence you are on.</div>`;
+}
+$("bmBtn").onclick=addBookmark;$("bmAdd").onclick=addBookmark;
+$("bms").addEventListener("click",e=>{
+  const d=e.target.closest("[data-bmdel]");if(d){S.meta.bookmarks.splice(+d.dataset.bmdel,1);putMeta(S.meta);renderBookmarks();toast("Bookmark removed");return}
+  const b=e.target.closest("[data-bm]");if(!b)return;const bm=S.meta.bookmarks[+b.dataset.bm];
+  goTo(bm.page);S.meta.lastPage=bm.page;S.meta.lastSentence=bm.s;putMeta(S.meta);setTab("text");
+  if(typeof R!=="undefined"&&!R.on&&!R.paused)idleHint();
+  toast(`Page ${bm.page}${bm.s?`: tap Read aloud to start at sentence ${bm.s+1}`:""}`);
+});
 
 /* range */
 function rangeText(){
@@ -1337,6 +1528,63 @@ $("copyRange").onclick=async()=>{
   try{await navigator.clipboard.writeText(t);toast("Text copied");$("copyBuf").hidden=true}
   catch(e){const cb=$("copyBuf");cb.hidden=false;cb.value=t;cb.focus();cb.select();toast("Copying is blocked here. The text is selected below — copy it yourself.")}
 };
+
+/* save text as a Word or text file */
+function rangeBounds(){let a=+$("rFrom").value||1,b=+$("rTo").value||S.pages.length;a=Math.max(1,Math.min(a,S.pages.length));b=Math.max(a,Math.min(b,S.pages.length));return[a,b]}
+const CRC_T=(()=>{const t=new Uint32Array(256);for(let n=0;n<256;n++){let c=n;for(let k=0;k<8;k++)c=c&1?0xEDB88320^(c>>>1):c>>>1;t[n]=c>>>0}return t})();
+function crc32(u){let c=0xFFFFFFFF;for(let i=0;i<u.length;i++)c=CRC_T[(c^u[i])&255]^(c>>>8);return(c^0xFFFFFFFF)>>>0}
+/* a small "stored" (uncompressed) zip writer, enough for a .docx */
+function zipStore(files){
+  const enc=new TextEncoder(),parts=[],cd=[];let off=0;
+  for(const f of files){const name=enc.encode(f.name),data=typeof f.data==="string"?enc.encode(f.data):f.data,crc=crc32(data);
+    const h=new DataView(new ArrayBuffer(30));h.setUint32(0,0x04034b50,true);h.setUint16(4,20,true);h.setUint16(6,0x0800,true);h.setUint16(8,0,true);h.setUint32(14,crc,true);h.setUint32(18,data.length,true);h.setUint32(22,data.length,true);h.setUint16(26,name.length,true);
+    parts.push(new Uint8Array(h.buffer),name,data);
+    const c=new DataView(new ArrayBuffer(46));c.setUint32(0,0x02014b50,true);c.setUint16(4,20,true);c.setUint16(6,20,true);c.setUint16(8,0x0800,true);c.setUint32(16,crc,true);c.setUint32(20,data.length,true);c.setUint32(24,data.length,true);c.setUint16(28,name.length,true);c.setUint32(42,off,true);
+    cd.push(new Uint8Array(c.buffer),name);off+=30+name.length+data.length}
+  const cdLen=cd.reduce((a,x)=>a+x.length,0),e=new DataView(new ArrayBuffer(22));
+  e.setUint32(0,0x06054b50,true);e.setUint16(8,files.length,true);e.setUint16(10,files.length,true);e.setUint32(12,cdLen,true);e.setUint32(16,off,true);
+  return new Blob([...parts,...cd,new Uint8Array(e.buffer)],{type:"application/vnd.openxmlformats-officedocument.wordprocessingml.document"});
+}
+const xesc=s=>s.replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c])).replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g,"");
+function buildDocx(title,pages){
+  const run=(s,o)=>`<w:r><w:rPr><w:rFonts w:ascii="Calibri" w:hAnsi="Calibri" w:cs="Nirmala UI"/>${o&&o.b?"<w:b/><w:bCs/>":""}<w:sz w:val="${o&&o.sz||24}"/><w:szCs w:val="${o&&o.sz||24}"/><w:lang w:val="en-IN" w:bidi="ml-IN"/></w:rPr><w:t xml:space="preserve">${xesc(s)}</w:t></w:r>`;
+  const para=(s,o)=>`<w:p><w:pPr>${o&&o.h?`<w:keepNext/><w:spacing w:before="320" w:after="120"/>`:`<w:spacing w:after="140" w:line="320" w:lineRule="auto"/>`}</w:pPr>${run(s,o)}</w:p>`;
+  let body=para(title,{b:true,sz:36,h:true});
+  for(const[n,text]of pages){body+=para(`Page ${n}`,{b:true,sz:26,h:true});
+    const paras=text.split(/\n\s*\n/).map(x=>x.replace(/\s*\n\s*/g," ").trim()).filter(Boolean);
+    body+=paras.length?paras.map(x=>para(x)).join(""):para("(no text on this page)",{sz:20})}
+  const doc=`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body>${body}<w:sectPr><w:pgSz w:w="11906" w:h="16838"/><w:pgMar w:top="1200" w:right="1200" w:bottom="1200" w:left="1200" w:header="600" w:footer="600" w:gutter="0"/></w:sectPr></w:body></w:document>`;
+  return zipStore([
+    {name:"[Content_Types].xml",data:`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/></Types>`},
+    {name:"_rels/.rels",data:`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/></Relationships>`},
+    {name:"word/document.xml",data:doc}]);
+}
+async function saveBlob(blob,name){
+  if(NATIVE_FILES){
+    try{const b64=await new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(String(r.result).split(",")[1]);r.onerror=rej;r.readAsDataURL(blob)});
+      const r=await NATIVE_FILES.saveFile({name,mime:blob.type||"application/octet-stream",data:b64});
+      showSaved(`Saved to ${r.where||"Downloads"} as “${r.name||name}”.`,r.uri,blob.type);return}
+    catch(e){toast("The file could not be saved: "+(e&&e.message||e),true);return}
+  }
+  const u=URL.createObjectURL(blob),a=document.createElement("a");a.href=u;a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),60000);
+  toast(`Saved “${name}” to your downloads`);
+}
+let NATIVE_FILES=null;
+function showSaved(msg,uri,mime){
+  const box=$("expBox");box.hidden=false;$("expMsg").textContent=msg;$("expBar").style.width="100%";
+  $("expAct").innerHTML=uri&&NATIVE_FILES?`<button class="btn sm primary" data-xopen>Open</button><button class="btn sm" data-xshare>Share</button>`:"";
+  box.dataset.uri=uri||"";box.dataset.mime=mime||"";
+}
+$("expAct").addEventListener("click",e=>{const box=$("expBox");if(!NATIVE_FILES)return;
+  if(e.target.closest("[data-xopen]"))NATIVE_FILES.openFile({uri:box.dataset.uri,mime:box.dataset.mime}).catch(()=>toast("No app on this phone can open this file",true));
+  if(e.target.closest("[data-xshare]"))NATIVE_FILES.shareFile({uri:box.dataset.uri,mime:box.dataset.mime}).catch(()=>{});
+});
+function rangePages(){const[a,b]=rangeBounds();$("rFrom").value=a;$("rTo").value=b;const out=[];for(let i=a;i<=b;i++)out.push([i,(S.pages[i-1].text||"").trim()]);return{a,b,out}}
+const fileBase=(a,b)=>`${docName().replace(/[\\/:*?"<>|]+/g," ").trim().slice(0,80)||"document"}${a===1&&b===S.pages.length?"":` (pages ${a}-${b})`}`;
+$("saveDocx").onclick=()=>{const{a,b,out}=rangePages();saveBlob(buildDocx(docName(),out),fileBase(a,b)+".docx")};
+$("saveTxt").onclick=()=>{const{a,b,out}=rangePages();saveBlob(new Blob(["\uFEFF"+out.map(([n,t])=>`— ${n} —\n${t}`).join("\n\n")],{type:"text/plain;charset=utf-8"}),fileBase(a,b)+".txt")};
+$("saveAudio").onclick=()=>{if(!NATIVE_TTS||!NATIVE_TTS.exportAudio){showSaved("Saving as audio works in the Android app. Browsers can't record the device's voices. Install the app from the Releases page to save chapters as audio files.","","");$("expBar").style.width="0";return}exportAudio()};
+let exportAudio=function(){};
 
 /* delete current */
 $("delBtn").onclick=async()=>{
@@ -1569,7 +1817,7 @@ function switchSource(src){
   const btn=src==="ocr"?$("srcOcr"):$("srcPdf");
   if(p.edited&&!btn.dataset.armed){btn.dataset.armed="1";const old=btn.textContent;btn.textContent="Tap again: replaces your edits";setTimeout(()=>{delete btn.dataset.armed;btn.textContent=old},4000);return}
   delete btn.dataset.armed;btn.textContent=src==="ocr"?"OCR text":"PDF text";
-  p.source=src;p.text=p.orig=src==="ocr"?p.ocr.text:p.pdfText;p.edited=false;p.lang=detectLang(p.text);saveDoc();showText();
+  p.source=src;p.text=p.orig=src==="ocr"?p.ocr.text:p.pdfText;p.edited=false;p.hfKey=null;p.lang=detectLang(p.text);saveDoc();showText();
 }
 $("srcPdf").onclick=()=>switchSource("pdf");$("srcOcr").onclick=()=>switchSource("ocr");
 $("notes").addEventListener("click",e=>{const nt=e.target.closest(".note");if(nt)nt.classList.toggle("open");const b=e.target.closest("[data-w]");if(!b)return;
@@ -1885,6 +2133,10 @@ function resumeAfterOcr(n){
 function pageDone(g){
   if(g!==R.gen)return;
   if(R.custom){stopReading(`Finished reading the ${R.customLabel.toLowerCase()}.`,"",true);return}
+  if(!NATIVE_TTS&&SLEEP.page&&R.page>=SLEEP.page){
+    const done=R.page,lab=SLEEP.label;sleepFired("");
+    if(done<S.pages.length){R.engineNav=true;goTo(done+1);R.engineNav=false}
+    stopReading(`Sleep timer: paused after ${lab}. Tap Read aloud to continue${done<S.pages.length?` from page ${done+1}`:""}.`,"");return}
   if(VS.cont&&R.page<S.pages.length&&isWaiting(S.pages[R.page])&&!OCR.blocked){waitForOcr(R.page+1);return}
   const nx=VS.cont?readablePageFrom(R.page+1,1):null;
   if(!nx){if(S.meta){S.meta.lastSentence=0;putMeta(S.meta)}stopReading(`Finished reading${VS.cont?"":` page ${R.page}`}.`,"",true);return}
@@ -1896,6 +2148,44 @@ function pageDone(g){
   mediaMeta();
   speakFrom(0);
 }
+/* ---------- sleep timer ---------- */
+const SLEEP={mode:"off",until:0,page:0,label:""};
+let sleepSync=function(){};
+function sleepShort(){if(SLEEP.mode==="min")return Math.max(1,Math.ceil((SLEEP.until-Date.now())/60000))+"m";if(SLEEP.mode==="page")return"page";if(SLEEP.mode==="chapter")return"ch.";return""}
+function sleepUI(){const on=SLEEP.mode!=="off",l=$("sleepLbl");l.hidden=!on;l.textContent=sleepShort();$("sleepBtn").classList.toggle("on",on);
+  $("sleepBtn").setAttribute("aria-label",on?`Sleep timer: ${SLEEP.label}${SLEEP.mode==="min"?`, ${sleepShort().replace("m"," minutes")} left`:""}`:"Sleep timer: off")}
+function setSleep(mode,val){
+  SLEEP.mode=mode;SLEEP.until=0;SLEEP.page=0;
+  if(mode==="min"){SLEEP.until=Date.now()+val*60000;SLEEP.label=`${val} minutes`}
+  else if(mode==="page"){SLEEP.page=val;SLEEP.label=`end of page ${val}`}
+  else if(mode==="chapter"){SLEEP.page=val.to;SLEEP.label=`end of chapter “${val.title}” (page ${val.to})`}
+  else SLEEP.label="";
+  sleepSync();sleepUI();
+  toast(mode==="off"?"Sleep timer off":`Reading will pause after ${SLEEP.label}`);
+}
+function sleepFired(msg){SLEEP.mode="off";SLEEP.until=0;SLEEP.page=0;sleepUI();if(msg)setNow(msg,"Sleep timer")}
+function openSleep(){
+  const c=S.pdf?chapterAt(S.cur):null,pg=(R.on||R.paused)&&!R.custom?R.page:S.cur;
+  $("sleepNow").textContent=SLEEP.mode==="off"?"Reading pauses by itself, so you can fall asleep listening.":`On: pauses after ${SLEEP.label}${SLEEP.mode==="min"?` (${sleepShort().replace("m"," min")} left)`:""}.`;
+  $("sleepOpts").innerHTML=[5,10,15,30,45,60].map(m=>`<button class="btn" data-sl="min|${m}">${m} min</button>`).join("")+
+    `<button class="btn wide" data-sl="page|${pg}">End of this page (${pg})</button>`+
+    (c?`<button class="btn wide" data-sl="chapter|${c.i}">End of this chapter (page ${c.to})</button>`:"")+
+    `<button class="btn wide${SLEEP.mode==="off"?" primary":""}" data-sl="off|0">Off</button>`;
+  $("sleepSheet").hidden=false;$("sleepClose").focus();
+}
+$("sleepBtn").onclick=openSleep;
+$("sleepClose").onclick=()=>{$("sleepSheet").hidden=true;$("sleepBtn").focus()};
+$("sleepSheet").addEventListener("click",e=>{if(e.target===$("sleepSheet")){$("sleepSheet").hidden=true;return}
+  const b=e.target.closest("[data-sl]");if(!b)return;const[m,v]=b.dataset.sl.split("|");
+  if(m==="chapter"){const o=chapterAt(S.cur);setSleep("chapter",o)}else setSleep(m,+v);
+  $("sleepSheet").hidden=true});
+setInterval(()=>{
+  if(SLEEP.mode!=="min")return;
+  if(Date.now()>=SLEEP.until){
+    if(NATIVE_TTS){if(Date.now()>SLEEP.until+120000)sleepFired("")} // the app's own timer pauses reading
+    else{const was=R.on;sleepFired("");if(was){pauseReading();setNow("Sleep timer: reading paused. Tap Resume to carry on.","Sleep timer")}}
+  }else sleepUI();
+},5000);
 const pausedLabel=()=>`Paused · ${R.custom?R.customLabel:"page "+R.page} · sentence ${R.ci+1} of ${R.chunks.length}`;
 function pauseReading(){R.gen++;R.on=false;R.waitPage=null;R.lastSpoken=0;R.paused=true;R.utt=null;try{speechSynthesis.cancel()}catch(e){}wakeOff();mediaOff(true);updatePlayUI();$("nowLabel").textContent=pausedLabel();updateTimes()}
 function stopReading(msg,cls,finished){
@@ -2128,6 +2418,7 @@ function tryAllVoices(lang){
   toast(`Playing ${list.length} voices. Each says its number; pick that number in the list.`);
 }
 function openSheet(){loadVoices();renderVoiceSettings();$("sheet").hidden=false;$("sheetClose").focus()}
+document.addEventListener("keydown",e=>{if(e.key==="Escape"&&!$("sleepSheet").hidden)$("sleepClose").click()});
 function closeSheet(){$("sheet").hidden=true;saveVS();updatePlayUI();if(!R.on&&!R.paused)idleHint();renderAlong();$("voiceBtn").focus()}
 $("voiceBtn").onclick=openSheet;$("sheetClose").onclick=closeSheet;
 $("sheet").addEventListener("click",e=>{if(e.target===$("sheet"))closeSheet()});
@@ -2548,6 +2839,59 @@ if(NATIVE_TTS){
   wakeOff=function(){if(!BG.running){NATIVE_TTS.keepScreenOn({on:false}).catch(()=>{});KA.mode=""}};
   screenStatus=function(){return"Reading continues with the screen off. Use the notification to pause or stop. The screen stays on only while OCR is working."};
   mediaOn=function(){};mediaOff=function(){};mediaMeta=function(){};
+  NATIVE_FILES=NATIVE_TTS;
+  /* sleep timer: the app pauses reading itself, so it works with the screen off */
+  sleepSync=function(){NATIVE_TTS.setSleep({ms:SLEEP.mode==="min"?Math.max(1000,SLEEP.until-Date.now()):0,page:SLEEP.mode==="page"||SLEEP.mode==="chapter"?SLEEP.page:0}).catch(()=>{})};
+  NATIVE_TTS.addListener("sleep",ev=>{
+    const lab=SLEEP.label;sleepFired("");
+    const m=N.map&&N.map.get(ev.tag);
+    if(m&&!R.custom){
+      if(m.page!==R.page){R.engineNav=true;goTo(m.page);R.engineNav=false;R.page=m.page;R.chunks=m.chunks}
+      R.ci=m.i;R.pi=0;R.on=false;R.paused=true;updatePlayUI();renderAlongActive();savePos();
+      setNow(`Sleep timer: paused after ${lab||"the time you set"}. Tap Resume to carry on from page ${m.page}${m.i?`, sentence ${m.i+1}`:""}.`,"Sleep timer");
+    }else if(ev.extra!=="expired"&&(R.on||R.paused))setNow("Sleep timer: reading paused. Tap Resume to carry on.","Sleep timer");
+  });
+  /* save pages as an audio file (the phone's voices, recorded by the app) */
+  const EXP={running:false,a:0,b:0};
+  exportAudio=async function(){
+    if(EXP.running){toast("An audio file is already being made");return}
+    const{a,b}=rangePages(),items=[],skip=[];
+    for(let p=a;p<=b;p++){const bc=buildChunks(p);if(bc.needOcr||isWaiting(S.pages[p-1])){skip.push(p);continue}
+      bc.chunks.forEach((ch,i)=>ch.parts.forEach((part,j)=>{const it=itemFor(`x|${p}|${i}|${j}`,part,p);if(it)items.push(it)}))}
+    if(!items.length){toast(skip.length?"These pages still need OCR. Wait for OCR to finish, then try again.":"These pages have no text to read.",true);return}
+    if(R.on)pauseReading();
+    EXP.running=true;EXP.a=a;EXP.b=b;
+    const name=fileBase(a,b)+".m4a";
+    $("expBox").hidden=false;$("expBar").style.width="0";
+    $("expMsg").textContent=`Preparing audio for pages ${a}–${b}…${skip.length?` Pages ${skip.join(", ")} are left out because they still need OCR.`:""}`;
+    $("expAct").innerHTML=`<button class="btn sm" data-xcancel>Cancel</button>`;
+    NATIVE_TTS.keepScreenOn({on:true}).catch(()=>{});
+    try{await NATIVE_TTS.exportAudio({items,name,title:docName()})}
+    catch(e){EXP.running=false;$("expMsg").textContent="Could not start: "+(e&&e.message||e);$("expAct").innerHTML=""}
+  };
+  const expEnd=()=>{EXP.running=false;if(!BG.running)NATIVE_TTS.keepScreenOn({on:false}).catch(()=>{})};
+  $("expAct").addEventListener("click",e=>{if(e.target.closest("[data-xcancel]")){NATIVE_TTS.cancelExport().catch(()=>{});$("expMsg").textContent="Cancelling…"}});
+  NATIVE_TTS.addListener("exportProgress",ev=>{if(!EXP.running)return;const f=ev.total?ev.done/ev.total:0;$("expBar").style.width=Math.round(f*100)+"%";
+    $("expMsg").textContent=`Making audio for pages ${EXP.a}–${EXP.b}: sentence ${ev.done} of ${ev.total} (${Math.round(f*100)}%). Keep the app open; the screen stays on until it's done.`});
+  NATIVE_TTS.addListener("exportDone",ev=>{expEnd();
+    showSaved(`Saved “${ev.name}” (${fmtTime(ev.seconds||0)} of audio, ${fmtBytes(ev.bytes||0)}) in ${ev.where||"Music"}. It plays in any music app and can be shared on WhatsApp.${ev.skipped?` ${ev.skipped} sentence${ev.skipped>1?"s":""} could not be made and ${ev.skipped>1?"were":"was"} left out.`:""}`,ev.uri,"audio/mp4")});
+  NATIVE_TTS.addListener("exportError",ev=>{expEnd();$("expBar").style.width="0";$("expMsg").textContent=ev.cancelled?"Audio file cancelled.":`The audio file could not be made: ${ev.message||"unknown error"}`;$("expAct").innerHTML=""});
+  /* PDFs opened from WhatsApp, Files, Gmail… ("Open with" or "Share") */
+  let incomingBusy=false;
+  const takeIncoming=async()=>{
+    if(incomingBusy)return;incomingBusy=true;
+    try{
+      const r=await NATIVE_TTS.takeIncoming();if(!r||!r.path)return;
+      if(r.error){toast(r.error,true);return}
+      const res=await fetch(window.Capacitor.convertFileSrc("file://"+r.path));const buf=await res.arrayBuffer();
+      if(S.pdf&&!$("reader").hidden){bgReset();stopReading("");clearTimeout(S.saveT);if(S.meta)await saveDoc()}
+      let name=(r.name||"Shared PDF").trim();if(!/\.pdf$/i.test(name))name+=".pdf";
+      await openBuffer(buf,{name,size:buf.byteLength,lastModified:0});
+    }catch(e){toast("The shared PDF could not be opened: "+(e&&e.message||e),true)}
+    finally{incomingBusy=false}
+  };
+  NATIVE_TTS.addListener("incomingFile",()=>takeIncoming());
+  setTimeout(takeIncoming,400);
   // back from Android's settings: pick up newly downloaded voices
   document.addEventListener("visibilitychange",async()=>{if(document.visibilityState==="visible"){await loadEngines();await loadNativeVoices()}});
   // Android Back button: close the panel, then go back to the document list, then leave the app
@@ -2555,6 +2899,7 @@ if(NATIVE_TTS){
     const App=window.Capacitor.registerPlugin("App");
     if(App)App.addListener("backButton",()=>{
       if(!$("sheet").hidden){closeSheet();return}
+      if(!$("sleepSheet").hidden){$("sleepClose").click();return}
       if(!$("reader").hidden){$("backBtn").click();return}
       App.exitApp();
     });

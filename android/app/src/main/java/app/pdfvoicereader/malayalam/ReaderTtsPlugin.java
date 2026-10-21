@@ -2,6 +2,10 @@ package app.pdfvoicereader.malayalam;
 
 import android.Manifest;
 import android.content.Intent;
+import android.database.Cursor;
+import android.net.Uri;
+import android.provider.OpenableColumns;
+import android.util.Base64;
 import android.content.pm.PackageManager;
 import android.speech.tts.TextToSpeech;
 import android.os.Build;
@@ -21,6 +25,10 @@ import com.getcapacitor.annotation.CapacitorPlugin;
 
 import org.json.JSONObject;
 
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -32,8 +40,12 @@ public class ReaderTtsPlugin extends Plugin {
     private ReaderEngine engine;
     private final Handler main = new Handler(Looper.getMainLooper());
 
+    /** A PDF handed to the app by WhatsApp, Files, Gmail…, copied into the app's cache. */
+    private static JSObject incoming;
+
     @Override
     public void load() {
+        if (getActivity() != null) handleIncoming(getActivity().getIntent());
         engine = ReaderEngine.get(getContext());
         engine.setListener((name, tag, extra) -> main.post(() -> {
             JSObject o = new JSObject();
@@ -174,6 +186,203 @@ public class ReaderTtsPlugin extends Plugin {
             });
         }
         call.resolve();
+    }
+
+    // ------------------------------------------------------------ sleep timer
+
+    @PluginMethod
+    public void setSleep(PluginCall call) {
+        Double ms = call.getDouble("ms", 0.0);
+        Integer page = call.getInt("page", 0);
+        engine.setSleep(ms == null ? 0 : ms.longValue(), page == null ? 0 : page);
+        call.resolve();
+    }
+
+    // ------------------------------------------------------------ save as audio
+
+    @PluginMethod
+    public void exportAudio(PluginCall call) {
+        List<ReaderEngine.Item> list = parseItems(call);
+        if (list == null) return;
+        String name = call.getString("name", "PDF Voice Reader.m4a");
+        boolean started = AudioExporter.start(getContext(), list, name, new AudioExporter.Callback() {
+            private long last = 0;
+
+            @Override
+            public void progress(int done, int total) {
+                long now = System.currentTimeMillis();
+                if (done < total && now - last < 400) return;
+                last = now;
+                JSObject o = new JSObject();
+                o.put("done", done);
+                o.put("total", total);
+                main.post(() -> notifyListeners("exportProgress", o));
+            }
+
+            @Override
+            public void done(String uri, String shown, String where, long bytes, double seconds, int skipped) {
+                JSObject o = new JSObject();
+                o.put("uri", uri);
+                o.put("name", shown);
+                o.put("where", where);
+                o.put("bytes", bytes);
+                o.put("seconds", seconds);
+                o.put("skipped", skipped);
+                main.post(() -> notifyListeners("exportDone", o));
+            }
+
+            @Override
+            public void failed(String message, boolean cancelled) {
+                JSObject o = new JSObject();
+                o.put("message", message);
+                o.put("cancelled", cancelled);
+                main.post(() -> notifyListeners("exportError", o));
+            }
+        });
+        if (!started) {
+            call.reject("An audio file is already being made.");
+            return;
+        }
+        call.resolve();
+    }
+
+    @PluginMethod
+    public void cancelExport(PluginCall call) {
+        AudioExporter.cancel();
+        call.resolve();
+    }
+
+    // ------------------------------------------------------------ files
+
+    /** Saves a file made by the page (Word, text) into Downloads › PDF Voice Reader. */
+    @PluginMethod
+    public void saveFile(PluginCall call) {
+        String name = call.getString("name", "document");
+        String mime = call.getString("mime", "application/octet-stream");
+        String data = call.getString("data", "");
+        new Thread(() -> {
+            File tmp = new File(getContext().getCacheDir(), "save.tmp");
+            try {
+                byte[] bytes = Base64.decode(data, Base64.DEFAULT);
+                try (OutputStream os = new FileOutputStream(tmp)) {
+                    os.write(bytes);
+                }
+                String clean = name.replaceAll("[\\\\/:*?\"<>|]+", " ").trim();
+                String[] r = AudioExporter.FileSaver.save(getContext(), tmp, clean.isEmpty() ? "document" : clean, mime, false);
+                JSObject o = new JSObject();
+                o.put("uri", r[0]);
+                o.put("name", r[1]);
+                o.put("where", r[2]);
+                call.resolve(o);
+            } catch (Exception e) {
+                call.reject(e.getMessage() == null ? e.toString() : e.getMessage());
+            } finally {
+                //noinspection ResultOfMethodCallIgnored
+                tmp.delete();
+            }
+        }, "save-file").start();
+    }
+
+    @PluginMethod
+    public void openFile(PluginCall call) {
+        fileIntent(call, Intent.ACTION_VIEW);
+    }
+
+    @PluginMethod
+    public void shareFile(PluginCall call) {
+        fileIntent(call, Intent.ACTION_SEND);
+    }
+
+    private void fileIntent(PluginCall call, String action) {
+        String u = call.getString("uri", "");
+        String mime = call.getString("mime", "*/*");
+        if (u == null || u.isEmpty() || getActivity() == null) {
+            call.reject("no file");
+            return;
+        }
+        try {
+            Uri uri = Uri.parse(u);
+            Intent i = new Intent(action);
+            if (Intent.ACTION_SEND.equals(action)) {
+                i.setType(mime);
+                i.putExtra(Intent.EXTRA_STREAM, uri);
+            } else {
+                i.setDataAndType(uri, mime);
+            }
+            i.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+            Intent chooser = Intent.ACTION_SEND.equals(action) ? Intent.createChooser(i, "Share") : i;
+            getActivity().startActivity(chooser);
+            call.resolve();
+        } catch (Exception e) {
+            call.reject(e.getMessage() == null ? "No app can open this file" : e.getMessage());
+        }
+    }
+
+    // ------------------------------------------------------------ "Open with" / "Share" a PDF into the app
+
+    @Override
+    protected void handleOnNewIntent(Intent intent) {
+        super.handleOnNewIntent(intent);
+        handleIncoming(intent);
+    }
+
+    @PluginMethod
+    public void takeIncoming(PluginCall call) {
+        JSObject r;
+        synchronized (ReaderTtsPlugin.class) {
+            r = incoming;
+            incoming = null;
+        }
+        call.resolve(r == null ? new JSObject() : r);
+    }
+
+    private void handleIncoming(Intent intent) {
+        if (intent == null) return;
+        String action = intent.getAction();
+        Uri uri = null;
+        if (Intent.ACTION_VIEW.equals(action)) uri = intent.getData();
+        else if (Intent.ACTION_SEND.equals(action)) {
+            Object o = intent.getParcelableExtra(Intent.EXTRA_STREAM);
+            if (o instanceof Uri) uri = (Uri) o;
+        }
+        if (uri == null) return;
+        if (getActivity() != null && intent == getActivity().getIntent()) getActivity().setIntent(new Intent(Intent.ACTION_MAIN));
+        final Uri src = uri;
+        new Thread(() -> {
+            JSObject r = new JSObject();
+            try {
+                String name = "Shared PDF.pdf";
+                try (Cursor c = getContext().getContentResolver().query(src, new String[]{OpenableColumns.DISPLAY_NAME}, null, null, null)) {
+                    if (c != null && c.moveToFirst() && c.getString(0) != null) name = c.getString(0);
+                } catch (Exception ignored) {
+                    String last = src.getLastPathSegment();
+                    if (last != null && !last.isEmpty()) name = last;
+                }
+                File dir = new File(getContext().getCacheDir(), "incoming");
+                File[] old = dir.listFiles();
+                if (old != null) for (File f : old) //noinspection ResultOfMethodCallIgnored
+                    f.delete();
+                //noinspection ResultOfMethodCallIgnored
+                dir.mkdirs();
+                File dst = new File(dir, "shared.pdf");
+                try (InputStream is = getContext().getContentResolver().openInputStream(src); OutputStream os = new FileOutputStream(dst)) {
+                    if (is == null) throw new IllegalStateException("empty");
+                    byte[] buf = new byte[65536];
+                    int n;
+                    while ((n = is.read(buf)) > 0) os.write(buf, 0, n);
+                }
+                r.put("path", dst.getAbsolutePath());
+                r.put("name", name);
+                r.put("size", dst.length());
+            } catch (Exception e) {
+                r.put("path", "x");
+                r.put("error", "The PDF could not be opened from the other app. Save it to your phone first, then open it with Open PDF.");
+            }
+            synchronized (ReaderTtsPlugin.class) {
+                incoming = r;
+            }
+            main.post(() -> notifyListeners("incomingFile", new JSObject()));
+        }, "incoming-pdf").start();
     }
 
     private List<ReaderEngine.Item> parseItems(PluginCall call) {

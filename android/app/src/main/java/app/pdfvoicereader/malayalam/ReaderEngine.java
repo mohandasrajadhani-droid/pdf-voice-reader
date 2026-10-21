@@ -2,6 +2,8 @@ package app.pdfvoicereader.malayalam;
 
 import android.content.Context;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
 import android.speech.tts.TextToSpeech;
 import android.speech.tts.UtteranceProgressListener;
 import android.speech.tts.Voice;
@@ -85,6 +87,11 @@ public class ReaderEngine {
     private String title = "PDF Voice Reader";
     private int totalPages = 0;
     private Listener listener;
+    // sleep timer: pause after the sentence being spoken when time is up, or at the end of a page
+    private final Handler handler = new Handler(Looper.getMainLooper());
+    private Runnable sleepTask;
+    private int sleepAfterPage = 0;
+    private int stopAfterIndex = -1;
 
     private ReaderEngine(Context context) {
         ctx = context;
@@ -351,6 +358,7 @@ public class ReaderEngine {
     }
 
     public synchronized void stop() {
+        stopAfterIndex = -1;
         playing = false;
         paused = false;
         session++;
@@ -377,6 +385,28 @@ public class ReaderEngine {
                 e.tts.speak(it.text, TextToSpeech.QUEUE_FLUSH, new Bundle(), "sample");
             }
         });
+    }
+
+    /** Sleep timer: ms > 0 pauses after that many milliseconds (at the end of the sentence); page > 0 pauses at the end of that page. */
+    public synchronized void setSleep(long ms, int page) {
+        if (sleepTask != null) {
+            handler.removeCallbacks(sleepTask);
+            sleepTask = null;
+        }
+        sleepAfterPage = Math.max(0, page);
+        stopAfterIndex = -1;
+        if (ms > 0) {
+            sleepTask = () -> {
+                boolean idle;
+                synchronized (ReaderEngine.this) {
+                    sleepTask = null;
+                    idle = !playing;
+                    if (!idle) stopAfterIndex = current;
+                }
+                if (idle) emit("sleep", "", "expired");
+            };
+            handler.postDelayed(sleepTask, ms);
+        }
     }
 
     // ---- internals (called with the lock held) ----
@@ -431,6 +461,7 @@ public class ReaderEngine {
         int end = Math.min(items.size(), current + AHEAD);
         int i = start;
         for (; i < end && engOf(i).equals(key); i++) {
+            if (sleepAfterPage > 0 && i > current && items.get(i).page > sleepAfterPage && items.get(i - 1).page <= sleepAfterPage) break;
             Item it = items.get(i);
             applyVoice(e, it);
             e.tts.speak(it.text, TextToSpeech.QUEUE_ADD, new Bundle(), session + ":" + i);
@@ -480,11 +511,27 @@ public class ReaderEngine {
 
     private void handleDone(String utteranceId, boolean failed) {
         boolean finished = false;
+        String sleptAt = null;
+        String why = "";
         synchronized (this) {
             boolean[] same = new boolean[1];
             int i = indexOf(utteranceId, same);
             if (!same[0] || i < 0) return;
-            if (i >= items.size() - 1 && playing) {
+            boolean timeUp = stopAfterIndex >= 0 && i >= stopAfterIndex;
+            boolean pageEnd = sleepAfterPage > 0 && i + 1 < items.size()
+                && items.get(i).page <= sleepAfterPage && items.get(i + 1).page > sleepAfterPage;
+            if (playing && i < items.size() - 1 && (timeUp || pageEnd)) {
+                why = timeUp ? "time" : "page";
+                stopAfterIndex = -1;
+                sleepAfterPage = 0;
+                current = i + 1;
+                playing = false;
+                paused = true;
+                session++;
+                stopAll();
+                sleptAt = items.get(current).tag;
+                ReaderService.setPlaying(ctx, title, "Sleep timer · paused before " + pageText(items.get(current).page).toLowerCase(Locale.ROOT), false);
+            } else if (i >= items.size() - 1 && playing) {
                 playing = false;
                 current = items.size();
                 finished = true;
@@ -494,7 +541,13 @@ public class ReaderEngine {
                 topUp();
             }
         }
+        if (sleptAt != null) {
+            emit("paused", sleptAt, "");
+            emit("sleep", sleptAt, why);
+            return;
+        }
         if (finished) {
+            stopAfterIndex = -1;
             emit("end", "", failed ? "error" : "");
             ReaderService.stop(ctx);
         }
