@@ -1566,10 +1566,15 @@ async function saveBlob(blob,name){
       showSaved(`Saved to ${r.where||"Downloads"} as “${r.name||name}”.`,r.uri,blob.type);return}
     catch(e){toast("The file could not be saved: "+(e&&e.message||e),true);return}
   }
+  if(window.claude&&window.claude.use){
+    const dl=await DL_P;
+    if(dl){try{await dl.save({filename:name,data:blob});toast(`Saved “${name}”`)}catch(e){if(e&&e.code!=="declined")toast("The file could not be saved here: "+(e&&e.message||e),true)}return}
+  }
   const u=URL.createObjectURL(blob),a=document.createElement("a");a.href=u;a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),60000);
   toast(`Saved “${name}” to your downloads`);
 }
 let NATIVE_FILES=null;
+const DL_P=(window.claude&&window.claude.use)?Promise.resolve(window.claude.use("downloads")).catch(()=>null):Promise.resolve(null);
 function showSaved(msg,uri,mime){
   const box=$("expBox");box.hidden=false;$("expMsg").textContent=msg;$("expBar").style.width="100%";
   $("expAct").innerHTML=uri&&NATIVE_FILES?`<button class="btn sm primary" data-xopen>Open</button><button class="btn sm" data-xshare>Share</button>`:"";
