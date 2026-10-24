@@ -431,20 +431,20 @@ details.vsd summary{cursor:pointer;font-weight:700;min-height:40px;display:flex;
     </button>
     <span class="spacer"></span>
     <span class="stage">Android app</span>
-    <input type="file" id="file" accept="application/pdf,.pdf" hidden>
+    <input type="file" id="file" accept="application/pdf,.pdf,.epub,application/epub+zip,.docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document,.txt,text/plain,.html,.htm,image/*" multiple hidden>
   </div></header>
 
   <!-- HOME -->
   <main id="home" class="home wrap">
     <section class="drop" id="drop" aria-label="Open a PDF">
-      <h1>Open a Malayalam or English PDF<span>മലയാളം അല്ലെങ്കിൽ ഇംഗ്ലീഷ് PDF തുറക്കൂ</span></h1>
-      <p>The reader pulls out the text of every page, marks scanned pages, and tells you which pages are Malayalam, English or both. You can check and correct the text before listening.</p>
+      <h1>Open a book or PDF<span>പുസ്തകം അല്ലെങ്കിൽ PDF തുറക്കൂ</span></h1>
+      <p>Open a PDF, EPUB e-book, Word file (.docx), text file, or photos of pages. The reader pulls out the text of every page, reads scanned pages and photos with OCR, and finds the language of each page. You can check and correct the text before listening.</p>
       <div class="drop-actions">
-        <button class="btn primary" id="openBtn"><svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v11M7 9l5-5 5 5M5 19h14" stroke="currentColor" stroke-width="2.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>Open PDF</button>
+        <button class="btn primary" id="openBtn"><svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v11M7 9l5-5 5 5M5 19h14" stroke="currentColor" stroke-width="2.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>Open file</button>
         <button class="btn" id="sampleBtn">Try the sample PDF</button>
       </div>
       <div class="home-langs"><span class="muted">Languages in your scanned books (for OCR):</span><div class="lchips" id="homeLangs" role="group" aria-label="OCR languages"></div></div>
-      <p class="muted" id="dropHint"><span class="drag-t">Or drag a PDF onto this box. </span>Up to 300&nbsp;MB, whole books included. Works without internet: OCR and reading models are built into this file.</p>
+      <p class="muted" id="dropHint"><span class="drag-t">Or drag a file onto this box. </span>PDF, EPUB, Word, text or photos (choose several photos at once for a whole chapter). Up to 300&nbsp;MB, whole books included. Works without internet: OCR and reading models are built into this file.</p>
       <div class="privacy"><svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 11V8a5 5 0 0 1 10 0v3M5 11h14v10H5z" stroke="var(--green)" stroke-width="2" fill="none" stroke-linejoin="round"/></svg><span>Your PDF stays on this device. Text, OCR and reading aloud run inside your browser, and the document is saved only in this browser. Nothing is uploaded. Two exceptions, only when you use them: voices marked “needs internet” send each sentence to Google or Microsoft, and “Ask Claude” sends the text you choose to Claude on your account.</span></div>
     </section>
 
@@ -1212,7 +1212,7 @@ async function renderRecents(){
     const pct=m.pageCount?Math.round(((m.lastPage||1)-(m.lastPage>1||m.lastSentence?0:1))/m.pageCount*100):0;
     const bm=(m.bookmarks||[]).length;
     return `<div class="rec">
-    <div class="rec-cover" aria-hidden="true">${m.cover?`<img src="${m.cover}" alt="">`:"PDF"}</div>
+    <div class="rec-cover" aria-hidden="true">${m.cover?`<img src="${m.cover}" alt="">`:(FMT_LABEL[m.fmt]||"PDF")}</div>
     <div class="rec-main"><div class="rec-name">${esc(m.name.replace(/\.pdf$/i,""))}</div>
       <div class="rec-prog" role="img" aria-label="${pct}% read"><i style="width:${Math.max(pct,m.lastPage>1||m.lastSentence?2:0)}%"></i></div>
       <div class="rec-meta"><span>Page ${m.lastPage||1} of ${m.pageCount}${m.lastSentence?`, sentence ${m.lastSentence+1}`:""}${pct?` · ${pct}%`:""}</span>${m.needOcr?`<span>${m.needOcr} page${m.needOcr>1?"s":""} still need OCR</span>`:""}${bm?`<span>${bm} bookmark${bm>1?"s":""}</span>`:""}<span>${esc(docLangsLabel(m))}</span><span>${fmtDate(m.opened)}</span></div></div>
@@ -1224,6 +1224,9 @@ $("recSort").addEventListener("change",renderRecents);
 async function makeCover(){
   try{
     if(!S.pdf||!S.meta||S.meta.cover)return;
+    if(S.pdf.coverBlob){const id0=S.meta.id,b=await createImageBitmap(S.pdf.coverBlob),c=document.createElement("canvas");c.width=140;c.height=Math.round(140*b.height/b.width);
+      const x=c.getContext("2d");x.fillStyle="#fff";x.fillRect(0,0,c.width,c.height);x.drawImage(b,0,0,c.width,c.height);
+      if(S.meta&&S.meta.id===id0){S.meta.cover=c.toDataURL("image/jpeg",.7);putMeta(S.meta)}return}
     const id=S.meta.id,pg=await S.pdf.getPage(1),v1=pg.getViewport({scale:1}),vp=pg.getViewport({scale:140/v1.width});
     const c=document.createElement("canvas");c.width=Math.ceil(vp.width);c.height=Math.ceil(vp.height);
     const x=c.getContext("2d");x.fillStyle="#fff";x.fillRect(0,0,c.width,c.height);
@@ -1244,11 +1247,11 @@ $("recSearch").addEventListener("input",renderRecents);
 
 /* ---------- open / validate ---------- */
 $("openBtn").onclick=()=>$("file").click();
-$("file").onchange=e=>{const f=e.target.files[0];e.target.value="";if(f) openFile(f)};
+$("file").onchange=e=>{const l=[...e.target.files];e.target.value="";openFiles(l)};
 const drop=$("drop");
 ["dragenter","dragover"].forEach(t=>drop.addEventListener(t,e=>{e.preventDefault();drop.classList.add("over")}));
 ["dragleave","drop"].forEach(t=>drop.addEventListener(t,e=>{e.preventDefault();drop.classList.remove("over")}));
-drop.addEventListener("drop",e=>{const f=[...(e.dataTransfer.files||[])][0];if(f) openFile(f)});
+drop.addEventListener("drop",e=>openFiles(e.dataTransfer.files||[]));
 document.addEventListener("dragover",e=>e.preventDefault());
 document.addEventListener("drop",e=>e.preventDefault());
 $("sampleBtn").onclick=()=>{
@@ -1256,10 +1259,261 @@ $("sampleBtn").onclick=()=>{
   openBuffer(u.buffer,{name:"Sample – Malayalam, English, mixed, scanned.pdf",size:u.length,lastModified:1760832000000});
 };
 
+/* ---------- other formats: EPUB, Word (.docx), text, web pages and photos of pages ----------
+   Each is turned into a "virtual document" with the same small interface the app uses from pdf.js
+   (numPages, getPage → getViewport / render, getOutline), so reading, OCR, chapters and the
+   bookshelf work the same as for a PDF. Text formats are laid out into book-sized pages. */
+const FMT_LABEL={pdf:"PDF",epub:"EPUB",docx:"Word",txt:"Text",html:"Web page",images:"Photos"};
+const IMG_RE=/\.(jpe?g|png|webp|gif|bmp)$/i;
+function bufSize(b){return Array.isArray(b)?b.reduce((a,x)=>a+(x.data?x.data.byteLength:0),0):(b?b.byteLength:0)}
+function sniffFormat(buf,name){
+  if(Array.isArray(buf))return"images";
+  const n=(name||"").toLowerCase(),u=new Uint8Array(buf,0,Math.min(buf.byteLength,1024));
+  const at=(s,o=0)=>s.split("").every((c,i)=>u[o+i]===c.charCodeAt(0));
+  if(at("%PDF")||hasPdfHeader(buf))return"pdf";
+  if(u[0]===0xFF&&u[1]===0xD8||at("\x89PNG")||at("GIF8")||(at("RIFF")&&at("WEBP",8))||at("BM"))return"image";
+  if(at("PK\x03\x04"))return /\.docx$/.test(n)?"docx":/\.epub$/.test(n)?"epub":"zip";
+  if(/\.(mobi|azw3?|kfx|prc)$/.test(n))return"kindle";
+  if(/\.doc$/.test(n))return"doc";
+  if(/\.html?$|\.xhtml$/.test(n))return"html";
+  if(/\.(txt|md|text)$/.test(n))return"txt";
+  // unknown name: plain text if it decodes as text
+  let bad=0;for(let i=0;i<u.length;i++){const c=u[i];if(c<9||(c>13&&c<32))bad++}
+  return bad<4?"txt":"unknown";
+}
+
+/* a small zip reader (EPUB and .docx are zip files); deflate is undone by the browser */
+async function unzip(buf){
+  const u=new Uint8Array(buf),dv=new DataView(buf),td=new TextDecoder();
+  let e=u.length-22;while(e>=0&&dv.getUint32(e,true)!==0x06054b50)e--;
+  if(e<0)throw new Error("The file is damaged (its contents list is missing). Download it again.");
+  const count=dv.getUint16(e+10,true);let o=dv.getUint32(e+16,true);const map=new Map();
+  for(let i=0;i<count&&o+46<=u.length;i++){
+    if(dv.getUint32(o,true)!==0x02014b50)break;
+    const method=dv.getUint16(o+10,true),csize=dv.getUint32(o+20,true),nl=dv.getUint16(o+28,true),xl=dv.getUint16(o+30,true),cl=dv.getUint16(o+32,true),loff=dv.getUint32(o+42,true);
+    map.set(td.decode(u.subarray(o+46,o+46+nl)),{method,csize,loff});o+=46+nl+xl+cl;
+  }
+  const get=async name=>{
+    const f=map.get(name);if(!f)return null;
+    const s=f.loff+30+dv.getUint16(f.loff+26,true)+dv.getUint16(f.loff+28,true),data=u.subarray(s,s+f.csize);
+    if(f.method===0)return data.slice();
+    if(f.method!==8||typeof DecompressionStream==="undefined")throw new Error("This file uses a compression this device can't open.");
+    return new Uint8Array(await new Response(new Blob([data]).stream().pipeThrough(new DecompressionStream("deflate-raw"))).arrayBuffer());
+  };
+  return{names:[...map.keys()],has:n=>map.has(n),get,text:async n=>{const b=await get(n);return b?new TextDecoder().decode(b):null}};
+}
+const xmlDoc=s=>new DOMParser().parseFromString(s,"application/xml");
+function htmlDoc(s){let d=new DOMParser().parseFromString(s,"application/xhtml+xml");if(d.querySelector("parsererror")||!d.body)d=new DOMParser().parseFromString(s,"text/html");return d}
+function zjoin(base,href){try{const u=new URL(href,"http://z/"+base);return decodeURIComponent(u.pathname.slice(1))}catch(e){return href}}
+const BLOCK_SEL="p,h1,h2,h3,h4,h5,h6,li,blockquote,pre,dt,dd,figcaption,td,th,div,section,article,tr";
+const clean=s=>(s||"").replace(/[\u00AD\u200B\uFEFF]/g,"").replace(/[ \t\u00A0]+/g," ").replace(/ *\n */g,"\n").trim();
+/* the readable paragraphs of an HTML body, in order; headings marked */
+function htmlBlocks(root){
+  if(!root)return[];
+  root.querySelectorAll("script,style,noscript,svg,math,head").forEach(e=>e.remove());
+  root.querySelectorAll("br").forEach(b=>b.replaceWith("\n"));
+  const out=[];
+  const walk=el=>{
+    for(const ch of [...el.children]){
+      const inner=ch.querySelector(BLOCK_SEL);
+      if(ch.matches(BLOCK_SEL)&&!inner){const t=clean(ch.textContent);if(t)out.push({t,h:/^H[1-3]$/.test(ch.tagName.toUpperCase()),el:ch})}
+      else if(inner)walk(ch);
+      else if(ch.matches("span,a,b,i,em,strong,font,small,big,u,sup,sub")){const t=clean(ch.textContent);if(t)out.push({t,h:false,el:ch})}
+    }
+  };
+  walk(root);
+  if(!out.length){const t=clean(root.textContent);if(t)t.split(/\n\s*\n/).forEach(x=>out.push({t:x,h:false}))}
+  return out;
+}
+
+async function readEpub(buf){
+  const z=await unzip(buf);
+  const enc=await z.text("META-INF/encryption.xml");
+  if(enc&&/EncryptedData/.test(enc)&&/Algorithm="(?!http:\/\/www\.idpf\.org\/2008\/embedding|http:\/\/ns\.adobe\.com\/pdf\/enc#RC)/.test(enc))
+    throw new Error("This EPUB is copy-protected (DRM), so it can't be opened outside the shop's own app. Books you bought on Google Play or Kindle can't be read here; DRM-free EPUBs and PDFs work.");
+  const cont=await z.text("META-INF/container.xml");
+  const opfPath=cont&&(xmlDoc(cont).querySelector("rootfile")||{getAttribute:()=>null}).getAttribute("full-path");
+  if(!opfPath||!z.has(opfPath))throw new Error("This EPUB is damaged (its contents list is missing). Download it again.");
+  const opf=xmlDoc(await z.text(opfPath));
+  const man={};for(const it of opf.getElementsByTagName("item"))man[it.getAttribute("id")]={href:zjoin(opfPath,it.getAttribute("href")),type:it.getAttribute("media-type")||"",props:it.getAttribute("properties")||""};
+  const title=clean((opf.getElementsByTagName("dc:title")[0]||{}).textContent||"");
+  // cover picture
+  let cover=Object.values(man).find(m=>/cover-image/.test(m.props));
+  if(!cover){const meta=[...opf.getElementsByTagName("meta")].find(m=>m.getAttribute("name")==="cover");if(meta)cover=man[meta.getAttribute("content")]}
+  let coverBlob=null;if(cover&&/^image\//.test(cover.type)){const b=await z.get(cover.href);if(b)coverBlob=new Blob([b],{type:cover.type})}
+  // table of contents: EPUB 3 nav, else EPUB 2 NCX
+  const toc=[];
+  const nav=Object.values(man).find(m=>/\bnav\b/.test(m.props));
+  if(nav){const d=htmlDoc(await z.text(nav.href)||"");const n=[...d.querySelectorAll("nav")].find(x=>/toc/.test(x.getAttribute("epub:type")||x.getAttributeNS("http://www.idpf.org/2007/ops","type")||""))||d.querySelector("nav");
+    if(n)n.querySelectorAll("a[href]").forEach(a=>{let depth=0,p=a.parentElement;while(p&&p!==n){if(p.tagName.toLowerCase()==="ol")depth++;p=p.parentElement}toc.push({title:clean(a.textContent),href:zjoin(nav.href,a.getAttribute("href")),depth:Math.max(0,depth-1)})})}
+  if(!toc.length){const sp=opf.getElementsByTagName("spine")[0],ncx=sp&&man[sp.getAttribute("toc")];
+    if(ncx){const d=xmlDoc(await z.text(ncx.href)||"<x/>");const walk=(el,depth)=>{for(const np of el.children)if(np.tagName==="navPoint"){const t=np.getElementsByTagName("text")[0],c=np.getElementsByTagName("content")[0];if(t&&c)toc.push({title:clean(t.textContent),href:zjoin(ncx.href,c.getAttribute("src")),depth});walk(np,depth+1)}};const nm=d.getElementsByTagName("navMap")[0];if(nm)walk(nm,0)}}
+  // the reading order
+  const chapters=[];
+  for(const ref of opf.getElementsByTagName("itemref")){
+    const m=man[ref.getAttribute("idref")];if(!m||!/html|xml/.test(m.type))continue;
+    if(ref.getAttribute("linear")==="no"&&m===nav)continue;
+    const src=await z.text(m.href);if(!src)continue;
+    const d=htmlDoc(src),blocks=htmlBlocks(d.body||d.documentElement);
+    if(!blocks.length)continue;
+    const ids={};blocks.forEach((b,i)=>{let e=b.el;while(e&&e!==d.body){if(e.id&&ids[e.id]==null)ids[e.id]=i;e=e.parentElement}});
+    // ids that sit before a block (empty anchors) point to the next block
+    d.querySelectorAll("[id]").forEach(e=>{if(ids[e.id]!=null)return;const k=blocks.findIndex(b=>b.el&&(e.compareDocumentPosition(b.el)&Node.DOCUMENT_POSITION_FOLLOWING));if(k>=0)ids[e.id]=k});
+    chapters.push({file:m.href,blocks:blocks.map(b=>({t:b.t,h:b.h})),ids});
+  }
+  if(!chapters.length)throw new Error("This EPUB has no text to read (it may contain only pictures). For a picture book, open the pages as photos instead.");
+  // map the table of contents onto chapters and paragraphs
+  const marks=[];
+  for(const e of toc){const[f,frag]=e.href.split("#");const ci=chapters.findIndex(c=>c.file===f);if(ci<0||!e.title)continue;marks.push({ci,bi:frag&&chapters[ci].ids[frag]!=null?chapters[ci].ids[frag]:0,title:e.title,depth:Math.min(e.depth,2)})}
+  if(!marks.length)chapters.forEach((c,ci)=>{const h=c.blocks.find(b=>b.h);if(h)marks.push({ci,bi:c.blocks.indexOf(h),title:h.t.slice(0,80),depth:0})});
+  return{title,chapters,marks,coverBlob};
+}
+
+async function readDocx(buf){
+  const z=await unzip(buf);
+  const x=await z.text("word/document.xml");
+  if(!x)throw new Error("This Word file is damaged or is not a .docx file. Save it again as .docx or PDF.");
+  const W="http://schemas.openxmlformats.org/wordprocessingml/2006/main",d=xmlDoc(x),blocks=[],marks=[];
+  for(const p of d.getElementsByTagNameNS(W,"p")){
+    let t="";
+    const walk=n=>{for(const c of n.childNodes){if(c.nodeType!==1)continue;const l=c.localName;
+      if(l==="t")t+=c.textContent;else if(l==="tab")t+=" ";else if(l==="br"||l==="cr")t+="\n";else if(l==="p"||l==="del"||l==="instrText")continue;else walk(c)}};
+    walk(p);t=clean(t);if(!t)continue;
+    const st=p.getElementsByTagNameNS(W,"pStyle")[0],sv=st?st.getAttributeNS(W,"val")||st.getAttribute("w:val")||"":"";
+    const lvl=/^(Title|Heading1|Heading 1|1)$/i.test(sv)?0:/^Heading ?2$/i.test(sv)?1:/^Heading ?3$/i.test(sv)?2:-1;
+    if(lvl>=0)marks.push({ci:0,bi:blocks.length,title:t.slice(0,80),depth:lvl});
+    blocks.push({t,h:lvl>=0});
+  }
+  if(!blocks.length)throw new Error("This Word file has no text to read.");
+  const core=await z.text("docProps/core.xml");const title=core?clean((xmlDoc(core).getElementsByTagName("dc:title")[0]||{}).textContent||""):"";
+  return{title,chapters:[{blocks}],marks};
+}
+
+function decodeText(buf){
+  const u=new Uint8Array(buf);
+  if(u[0]===0xFF&&u[1]===0xFE)return new TextDecoder("utf-16le").decode(u);
+  if(u[0]===0xFE&&u[1]===0xFF)return new TextDecoder("utf-16be").decode(u);
+  try{return new TextDecoder("utf-8",{fatal:true}).decode(u)}catch(e){return new TextDecoder("windows-1252").decode(u)}
+}
+const CHAPTER_RE=/^(chapter|part|book|kapitel|teil|അദ്ധ്യായം|അധ്യായം|ഭാഗം|ಅಧ್ಯಾಯ|ಭಾಗ|அத்தியாயம்|பகுதி|الفصل|الباب|الجزء)(?=[\s.:,\-–]|\d|$)|^(\d+|[IVXLC]+)\.?\s*$/i;
+function readTxt(buf){
+  const s=decodeText(buf).replace(/\r\n?/g,"\n");
+  const lines=s.split("\n").length,blank=(s.match(/\n\s*\n/g)||[]).length;
+  // files with no blank lines use one line per paragraph
+  const paras=(blank>=lines/40?s.split(/\n\s*\n/):s.split("\n")).map(x=>clean(x.replace(/\n/g," "))).filter(Boolean);
+  if(!paras.length)throw new Error("This text file is empty.");
+  const blocks=[],marks=[];
+  for(const t of paras){const h=t.length<70&&CHAPTER_RE.test(t);if(h)marks.push({ci:0,bi:blocks.length,title:t,depth:0});blocks.push({t,h})}
+  return{title:"",chapters:[{blocks}],marks};
+}
+function readHtmlFile(buf){
+  const d=htmlDoc(decodeText(buf)),title=clean((d.querySelector("title")||{}).textContent||"");
+  const blocks=htmlBlocks(d.body||d.documentElement).map(b=>({t:b.t,h:b.h}));
+  if(!blocks.length)throw new Error("This web page has no text to read.");
+  const marks=[];blocks.forEach((b,i)=>{if(b.h)marks.push({ci:0,bi:i,title:b.t.slice(0,80),depth:0})});
+  return{title,chapters:[{blocks}],marks};
+}
+
+/* lay paragraphs out into book pages (each chapter file starts a new page; a paragraph is never split mid-sentence) */
+const VP={w:420,h:595,m:34,fs:13,lh:21,gap:8};
+let LAYOUT_FONT="";
+function layoutFont(h){if(!LAYOUT_FONT)LAYOUT_FONT=(getComputedStyle(document.documentElement).getPropertyValue("--f-text")||"").trim()||"sans-serif";return`${h?"700 ":""}${h?Math.round(VP.fs*1.3):VP.fs}px ${LAYOUT_FONT}`}
+function wrapLines(x,t,maxW){
+  const out=[];for(const raw of t.split("\n")){const words=raw.split(/ +/);let line="";
+    for(const w of words){const tryL=line?line+" "+w:w;if(x.measureText(tryL).width<=maxW||!line)line=tryL;else{out.push(line);line=w}}
+    out.push(line)}
+  return out;
+}
+async function paginate(book,onp){
+  try{await document.fonts.ready}catch(e){}
+  const x=document.createElement("canvas").getContext("2d"),maxW=VP.w-2*VP.m,maxH=VP.h-2*VP.m-14;
+  const pages=[];let cur=null;const startOf={};
+  const newPage=()=>{cur={blocks:[],used:0};pages.push(cur)};
+  const lh=h=>h?Math.round(VP.lh*1.3):VP.lh;
+  const place=(b,ci,bi)=>{
+    x.font=layoutFont(b.h);const rtl=domReg(b.t)==="ar";
+    let lines=wrapLines(x,b.t,maxW),hgt=lines.length*lh(b.h)+VP.gap;
+    if(cur.used+hgt>maxH&&cur.blocks.length)newPage();
+    if(startOf[ci+"|"+bi]==null)startOf[ci+"|"+bi]=pages.length;
+    if(hgt<=maxH){cur.blocks.push({t:b.t,h:b.h,rtl,lines});cur.used+=hgt;return}
+    // a paragraph longer than a page: split it between sentences
+    const sents=b.t.match(/[^.!?।؟]+[.!?।؟]*["'’”)]*\s*/g)||[b.t];let acc="";
+    for(const s of sents){const tryT=acc+s,l2=wrapLines(x,tryT.trim(),maxW);
+      if(acc&&cur.used+l2.length*lh(b.h)+VP.gap>maxH){const l1=wrapLines(x,acc.trim(),maxW);cur.blocks.push({t:acc.trim(),h:b.h,rtl,lines:l1});newPage();acc=s}
+      else acc=tryT}
+    if(acc.trim()){const l1=wrapLines(x,acc.trim(),maxW);cur.blocks.push({t:acc.trim(),h:b.h,rtl,lines:l1});cur.used+=l1.length*lh(b.h)+VP.gap}
+  };
+  let done=0;const total=book.chapters.reduce((a,c)=>a+c.blocks.length,0)||1;
+  for(let ci=0;ci<book.chapters.length;ci++){
+    newPage();
+    const bl=book.chapters[ci].blocks;
+    for(let bi=0;bi<bl.length;bi++){place(bl[bi],ci,bi);if(++done%400===0){onp&&onp(done/total);await new Promise(r=>setTimeout(r,0))}}
+  }
+  const list=pages.filter(p=>p.blocks.length);
+  const idx=new Map(list.map((p,i)=>[p,i]));
+  // pages removed as empty shift the numbers: recompute each mark's page from the block it starts at
+  const pageOfStart=k=>{let n=startOf[k];if(n==null)return 1;let p=pages[n-1];while(p&&!idx.has(p)){n++;p=pages[n-1]}return p?idx.get(p)+1:list.length};
+  const outline=book.marks.map(m=>({title:m.title,page:pageOfStart(m.ci+"|"+m.bi),depth:m.depth})).filter((m,i,a)=>m.title&&!(i&&a[i-1].page===m.page&&a[i-1].title===m.title));
+  return{pages:list.map(p=>({blocks:p.blocks,text:p.blocks.map(b=>b.t).join("\n\n")})),outline};
+}
+function drawTextPage(x,P,s,n){
+  x.scale(s,s);x.fillStyle="#1d1d1b";x.textBaseline="alphabetic";let y=VP.m;
+  for(const b of P.blocks){const L=b.h?Math.round(VP.lh*1.3):VP.lh;x.font=layoutFont(b.h);x.direction=b.rtl?"rtl":"ltr";x.textAlign=b.rtl?"right":"left";
+    for(const line of b.lines){y+=L;x.fillText(line,b.rtl?VP.w-VP.m:VP.m,y-L*.27)}y+=VP.gap}
+  x.direction="ltr";x.textAlign="center";x.fillStyle="#8a8a85";x.font=`11px ${LAYOUT_FONT}`;x.fillText(String(n),VP.w/2,VP.h-14);
+}
+function virtualDoc(pages,outline,opts){
+  return{
+    isVirtual:true,fmt:opts.fmt,numPages:pages.length,coverBlob:opts.cover||null,title:opts.title||"",
+    textOf:n=>pages[n-1].text||"",
+    async getPage(n){
+      const P=pages[n-1];let bmp=null,base={width:VP.w,height:VP.h};
+      if(P.img){bmp=await createImageBitmap(P.img);base={width:bmp.width,height:bmp.height}}
+      return{
+        getViewport:({scale})=>({width:base.width*scale,height:base.height*scale,scale}),
+        render({canvasContext:x,viewport}){let stop=false;const promise=(async()=>{
+          if(stop){const e=new Error("cancelled");e.name="RenderingCancelledException";throw e}
+          x.save();x.fillStyle="#fff";x.fillRect(0,0,viewport.width,viewport.height);
+          if(bmp)x.drawImage(bmp,0,0,viewport.width,viewport.height);else drawTextPage(x,P,viewport.scale,n);
+          x.restore()})();return{promise,cancel(){stop=true}}},
+        getTextContent:async()=>({items:[]}),cleanup(){}
+      }},
+    getOutline:async()=>outline.map(o=>({title:o.title,dest:[o.page-1],items:[],depth:o.depth})),
+    getDestination:async d=>d,getPageIndex:async r=>r,destroy(){}
+  };
+}
+async function openOther(buf,fmt,info){
+  if(fmt==="kindle")throw new Error("Kindle books (.mobi, .azw) can't be opened here. Convert the book to EPUB with the free Calibre app, or open a PDF or EPUB copy.");
+  if(fmt==="doc")throw new Error("Old Word files (.doc) can't be opened. Open it in Word or Google Docs and save it as .docx or PDF.");
+  if(fmt==="unknown")throw new Error(`“${info.name}” isn't a format this app can open. Open a PDF, EPUB, Word (.docx), text file, or photos of pages.`);
+  if(fmt==="image"){buf=[{name:info.name,type:"",data:buf}];fmt="images"}
+  if(fmt==="images"){
+    const pages=buf.map(f=>({img:new Blob([f.data],{type:f.type||""}),text:""}));
+    for(const p of pages){try{const b=await createImageBitmap(p.img);if(b.close)b.close()}catch(e){throw new Error("A photo could not be opened. Use JPG or PNG photos (iPhone HEIC photos need converting first).")}}
+    return virtualDoc(pages,[],{fmt:"images",cover:pages[0].img});
+  }
+  let book;
+  if(fmt==="zip"){const z=await unzip(buf);fmt=z.has("META-INF/container.xml")?"epub":z.has("word/document.xml")?"docx":"";if(!fmt)throw new Error("This zip file isn't an EPUB or Word file.")}
+  setProg(.1,`Reading the ${FMT_LABEL[fmt]} file…`);
+  book=fmt==="epub"?await readEpub(buf):fmt==="docx"?await readDocx(buf):fmt==="html"?readHtmlFile(buf):readTxt(buf);
+  setProg(.3,"Laying out the pages…");
+  const{pages,outline}=await paginate(book,f=>setProg(.3+f*.6,"Laying out the pages…"));
+  return virtualDoc(pages,outline,{fmt,cover:book.coverBlob,title:book.title});
+}
+
+async function openFiles(list){
+  list=[...list];if(!list.length)return;
+  if(list.length===1&&!IMG_RE.test(list[0].name)&&!/^image\//.test(list[0].type)){openFile(list[0]);return}
+  const imgs=list.filter(f=>IMG_RE.test(f.name)||/^image\//.test(f.type));
+  if(imgs.length!==list.length){toast("Choose one book, or several photos of pages together.",true);return}
+  imgs.sort((a,b)=>a.name.localeCompare(b.name,undefined,{numeric:true}));
+  const data=[];for(const f of imgs)data.push({name:f.name,type:f.type,data:await f.arrayBuffer()});
+  const size=data.reduce((a,x)=>a+x.data.byteLength,0);
+  const name=imgs.length===1?imgs[0].name.replace(IMG_RE,""):`Photos – ${imgs[0].name.replace(IMG_RE,"")} and ${imgs.length-1} more`;
+  openBuffer(data,{name,size,lastModified:imgs[0].lastModified||0});
+}
 async function openFile(f){
-  const looksPdf=/\.pdf$/i.test(f.name)||f.type==="application/pdf";
-  if(!looksPdf){toast(`“${f.name}” is not a PDF. Choose a file that ends in .pdf.`,true);return}
-  if(f.size>MAX_BYTES){toast(`This PDF is ${fmtBytes(f.size)}. The limit is 300 MB. Split it into smaller parts and open them one at a time.`,true);return}
+  if(f.size>MAX_BYTES){toast(`This file is ${fmtBytes(f.size)}. The limit is 300 MB. Split it into smaller parts and open them one at a time.`,true);return}
   if(f.size<100){toast("This file is empty or incomplete. Download it again and retry.",true);return}
   let buf; try{buf=await f.arrayBuffer()}catch(e){toast("The file could not be read. If it is in cloud storage, download it to the device first.",true);return}
   openBuffer(buf,{name:f.name,size:f.size,lastModified:f.lastModified||0});
@@ -1267,15 +1521,19 @@ async function openFile(f){
 function hasPdfHeader(buf){const h=new Uint8Array(buf,0,Math.min(1024,buf.byteLength));for(let i=0;i<h.length-4;i++){if(h[i]===37&&h[i+1]===80&&h[i+2]===68&&h[i+3]===70&&h[i+4]===45)return true}return false}
 
 async function openBuffer(buf,info){
-  if(!window.pdfjsLib){toast("The PDF engine did not load. Check your internet connection once, then reload this page.",true);return}
-  if(!hasPdfHeader(buf)){toast("This file is named .pdf but is not a valid PDF. Try exporting it again as PDF.",true);return}
+  const fmt=sniffFormat(buf,info.name);
+  if(fmt==="pdf"&&!window.pdfjsLib){toast("The PDF engine did not load. Check your internet connection once, then reload this page.",true);return}
+  if(fmt!=="pdf"&&/\.pdf$/i.test(info.name||"")){toast("This file is named .pdf but is not a valid PDF. Try exporting it again as PDF.",true);return}
   const id=`${info.name}|${info.size}|${info.lastModified}`;
   bgReset();
   const ov=$("overlay");ov.hidden=false;S.cancel=false;
   setProg(0,"Opening file…");
-  await setupWorker();
   let pdf;
-  try{pdf=await pdfjsLib.getDocument({data:new Uint8Array(buf.slice(0)),isEvalSupported:false,useSystemFonts:true}).promise}
+  if(fmt!=="pdf"){
+    try{pdf=await openOther(buf,fmt,info)}
+    catch(e){ov.hidden=true;console.warn(e);toast(e&&e.message&&!(e instanceof TypeError||e instanceof RangeError||e instanceof SyntaxError||e.name==="DOMException")?e.message:`This ${FMT_LABEL[fmt]||""} file could not be opened. It may be damaged; try downloading it again.`,true);return}
+  }
+  else try{await setupWorker();pdf=await pdfjsLib.getDocument({data:new Uint8Array(buf.slice(0)),isEvalSupported:false,useSystemFonts:true}).promise}
   catch(e){ov.hidden=true;
     if(e&&e.name==="PasswordException") toast("This PDF is password-protected. Remove the password in a PDF app, then open it here.",true);
     else toast("This PDF is damaged and could not be opened. Try re-downloading or re-exporting it.",true);
@@ -1289,6 +1547,7 @@ async function openBuffer(buf,info){
     for(let i=1;i<=pdf.numPages;i++){
       if(S.cancel){ov.hidden=true;pdf.destroy();toast("Cancelled");return}
       setProg((i-1)/pdf.numPages,`Extracting page ${i} of ${pdf.numPages}`);
+      if(pdf.isVirtual){pages.push(analysePage(pdf.textOf(i)));continue}
       try{const pg=await pdf.getPage(i);const tc=await pg.getTextContent();pages.push(analysePage(buildText(tc.items)));pg.cleanup()}
       catch(e){pages.push({...analysePage(""),kind:"scan",reason:"This page could not be read. It may be damaged."})}
       if(i%4===0) await new Promise(r=>setTimeout(r,0));
@@ -1297,11 +1556,11 @@ async function openBuffer(buf,info){
   setProg(1,"Done");
   const meta={id,name:info.name,size:info.size,pageCount:pdf.numPages,added:prev?prev.added:Date.now(),opened:Date.now(),
     lastPage:prev?Math.min(prev.lastPage||1,pdf.numPages):1,lastSentence:prev?prev.lastSentence||0:0,lang:"none",needOcr:0,
-    bookmarks:prev&&prev.bookmarks||[],cover:prev&&prev.cover||""};
+    bookmarks:prev&&prev.bookmarks||[],cover:prev&&prev.cover||"",fmt:pdf.isVirtual?pdf.fmt:"pdf",ocrLangs:prev&&prev.ocrLangs};
   try{if(navigator.storage&&navigator.storage.persist)navigator.storage.persist().catch(()=>{})}catch(e){}
   S.pdf=pdf;S.meta=meta;S.pages=pages;S.buf=buf;
   updateMetaSummary();
-  let stored=buf.byteLength<=STORE_MAX&&!!(await putData({id,pages,buf:buf.byteLength<=STORE_MAX?buf:null}));
+  let stored=bufSize(buf)<=STORE_MAX&&!!(await putData({id,pages,buf}));
   if(!stored)await putData({id,pages,buf:null}); // not enough room for the file itself: keep the text and position
   await putMeta(meta);
   S.stored=stored;
@@ -1527,7 +1786,7 @@ async function loadOutline(pdf){
   const out=[];
   const walk=async(list,depth)=>{for(const o of list){if(out.length>=500)return;let page=0;
     try{let d=o.dest;if(typeof d==="string")d=await pdf.getDestination(d);if(Array.isArray(d)&&d[0]!=null)page=typeof d[0]==="number"?d[0]+1:(await pdf.getPageIndex(d[0]))+1}catch(e){}
-    if(page)out.push({title:(o.title||"").replace(/\s+/g," ").trim()||`Page ${page}`,page,depth});
+    if(page)out.push({title:(o.title||"").replace(/\s+/g," ").trim()||`Page ${page}`,page,depth:o.depth!=null?o.depth:depth});
     if(o.items&&o.items.length&&depth<2)await walk(o.items,depth+1)}};
   await walk(ol,0);
   return out;
@@ -3033,10 +3292,11 @@ if(NATIVE_TTS){
     try{
       const r=await NATIVE_TTS.takeIncoming();if(!r||!r.path)return;
       if(r.error){toast(r.error,true);return}
-      const res=await fetch(window.Capacitor.convertFileSrc("file://"+r.path));const buf=await res.arrayBuffer();
+      const files=r.files&&r.files.length?r.files:[{path:r.path,name:r.name}];
+      const got=[];for(const f of files){const res=await fetch(window.Capacitor.convertFileSrc("file://"+f.path));got.push({name:(f.name||"Shared file").trim(),data:await res.arrayBuffer()})}
       if(S.pdf&&!$("reader").hidden){bgReset();stopReading("");clearTimeout(S.saveT);if(S.meta)await saveDoc()}
-      let name=(r.name||"Shared PDF").trim();if(!/\.pdf$/i.test(name))name+=".pdf";
-      await openBuffer(buf,{name,size:buf.byteLength,lastModified:0});
+      if(got.length>1){const size=got.reduce((a,x)=>a+x.data.byteLength,0);await openBuffer(got.map(g=>({name:g.name,type:"",data:g.data})),{name:`Photos – ${got[0].name.replace(IMG_RE,"")} and ${got.length-1} more`,size,lastModified:0})}
+      else await openBuffer(got[0].data,{name:got[0].name,size:got[0].data.byteLength,lastModified:0});
     }catch(e){toast("The shared PDF could not be opened: "+(e&&e.message||e),true)}
     finally{incomingBusy=false}
   };

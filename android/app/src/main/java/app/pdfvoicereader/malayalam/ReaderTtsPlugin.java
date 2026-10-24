@@ -339,50 +339,101 @@ public class ReaderTtsPlugin extends Plugin {
     private void handleIncoming(Intent intent) {
         if (intent == null) return;
         String action = intent.getAction();
-        Uri uri = null;
-        if (Intent.ACTION_VIEW.equals(action)) uri = intent.getData();
-        else if (Intent.ACTION_SEND.equals(action)) {
+        final List<Uri> uris = new ArrayList<>();
+        if (Intent.ACTION_VIEW.equals(action)) {
+            if (intent.getData() != null) uris.add(intent.getData());
+        } else if (Intent.ACTION_SEND.equals(action)) {
             Object o = intent.getParcelableExtra(Intent.EXTRA_STREAM);
-            if (o instanceof Uri) uri = (Uri) o;
+            if (o instanceof Uri) uris.add((Uri) o);
+            else {
+                // text shared as words (not a file): read it like a text file
+                CharSequence txt = intent.getCharSequenceExtra(Intent.EXTRA_TEXT);
+                if (txt != null && txt.length() > 0) {
+                    shareText(txt.toString(), intent.getStringExtra(Intent.EXTRA_SUBJECT));
+                    return;
+                }
+            }
+        } else if (Intent.ACTION_SEND_MULTIPLE.equals(action)) {
+            ArrayList<Uri> list = intent.getParcelableArrayListExtra(Intent.EXTRA_STREAM);
+            if (list != null) uris.addAll(list);
         }
-        if (uri == null) return;
+        if (uris.isEmpty()) return;
         if (getActivity() != null && intent == getActivity().getIntent()) getActivity().setIntent(new Intent(Intent.ACTION_MAIN));
-        final Uri src = uri;
         new Thread(() -> {
             JSObject r = new JSObject();
             try {
-                String name = "Shared PDF.pdf";
-                try (Cursor c = getContext().getContentResolver().query(src, new String[]{OpenableColumns.DISPLAY_NAME}, null, null, null)) {
-                    if (c != null && c.moveToFirst() && c.getString(0) != null) name = c.getString(0);
-                } catch (Exception ignored) {
-                    String last = src.getLastPathSegment();
-                    if (last != null && !last.isEmpty()) name = last;
+                File dir = freshIncomingDir();
+                JSArray files = new JSArray();
+                int k = 0;
+                for (Uri src : uris) {
+                    String name = displayName(src, "Shared file " + (k + 1));
+                    File dst = new File(dir, "f" + (k++) + ".bin");
+                    try (InputStream is = getContext().getContentResolver().openInputStream(src); OutputStream os = new FileOutputStream(dst)) {
+                        if (is == null) throw new IllegalStateException("empty");
+                        byte[] buf = new byte[65536];
+                        int n;
+                        while ((n = is.read(buf)) > 0) os.write(buf, 0, n);
+                    }
+                    JSObject f = new JSObject();
+                    f.put("path", dst.getAbsolutePath());
+                    f.put("name", name);
+                    files.put(f);
                 }
-                File dir = new File(getContext().getCacheDir(), "incoming");
-                File[] old = dir.listFiles();
-                if (old != null) for (File f : old) //noinspection ResultOfMethodCallIgnored
-                    f.delete();
-                //noinspection ResultOfMethodCallIgnored
-                dir.mkdirs();
-                File dst = new File(dir, "shared.pdf");
-                try (InputStream is = getContext().getContentResolver().openInputStream(src); OutputStream os = new FileOutputStream(dst)) {
-                    if (is == null) throw new IllegalStateException("empty");
-                    byte[] buf = new byte[65536];
-                    int n;
-                    while ((n = is.read(buf)) > 0) os.write(buf, 0, n);
-                }
-                r.put("path", dst.getAbsolutePath());
-                r.put("name", name);
-                r.put("size", dst.length());
+                JSONObject first = files.getJSONObject(0);
+                r.put("path", first.getString("path"));
+                r.put("name", first.getString("name"));
+                r.put("files", files);
             } catch (Exception e) {
                 r.put("path", "x");
-                r.put("error", "The PDF could not be opened from the other app. Save it to your phone first, then open it with Open PDF.");
+                r.put("error", "The file could not be opened from the other app. Save it to your phone first, then open it with Open file.");
             }
-            synchronized (ReaderTtsPlugin.class) {
-                incoming = r;
+            deliver(r);
+        }, "incoming-file").start();
+    }
+
+    private void shareText(String text, String subject) {
+        new Thread(() -> {
+            JSObject r = new JSObject();
+            try {
+                File dst = new File(freshIncomingDir(), "shared.txt");
+                try (OutputStream os = new FileOutputStream(dst)) {
+                    os.write(text.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+                }
+                String name = (subject == null || subject.trim().isEmpty() ? "Shared text" : subject.trim()) + ".txt";
+                r.put("path", dst.getAbsolutePath());
+                r.put("name", name);
+            } catch (Exception e) {
+                r.put("path", "x");
+                r.put("error", "The shared text could not be opened.");
             }
-            main.post(() -> notifyListeners("incomingFile", new JSObject()));
-        }, "incoming-pdf").start();
+            deliver(r);
+        }, "incoming-text").start();
+    }
+
+    private File freshIncomingDir() {
+        File dir = new File(getContext().getCacheDir(), "incoming");
+        File[] old = dir.listFiles();
+        if (old != null) for (File f : old) //noinspection ResultOfMethodCallIgnored
+            f.delete();
+        //noinspection ResultOfMethodCallIgnored
+        dir.mkdirs();
+        return dir;
+    }
+
+    private String displayName(Uri src, String fallback) {
+        try (Cursor c = getContext().getContentResolver().query(src, new String[]{OpenableColumns.DISPLAY_NAME}, null, null, null)) {
+            if (c != null && c.moveToFirst() && c.getString(0) != null) return c.getString(0);
+        } catch (Exception ignored) {
+        }
+        String last = src.getLastPathSegment();
+        return last != null && !last.isEmpty() ? last : fallback;
+    }
+
+    private void deliver(JSObject r) {
+        synchronized (ReaderTtsPlugin.class) {
+            incoming = r;
+        }
+        main.post(() -> notifyListeners("incomingFile", new JSObject()));
     }
 
     private List<ReaderEngine.Item> parseItems(PluginCall call) {
