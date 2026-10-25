@@ -11,6 +11,7 @@ import android.speech.tts.TextToSpeech;
 import android.os.Build;
 import android.os.Handler;
 import android.os.Looper;
+import android.view.View;
 import android.view.WindowManager;
 
 import androidx.core.app.ActivityCompat;
@@ -443,6 +444,7 @@ public class ReaderTtsPlugin extends Plugin {
     @PluginMethod
     public void immersive(PluginCall call) {
         boolean on = Boolean.TRUE.equals(call.getBoolean("on", true));
+        String color = call.getString("color", "");
         if (getActivity() == null) {
             call.resolve();
             return;
@@ -451,6 +453,17 @@ public class ReaderTtsPlugin extends Plugin {
             try {
                 android.view.Window w = getActivity().getWindow();
                 WindowInsetsControllerCompat c = WindowCompat.getInsetsController(w, w.getDecorView());
+                if (color != null && color.matches("#[0-9a-fA-F]{6}")) {
+                    int col = android.graphics.Color.parseColor(color);
+                    // paint the edges (behind the bars and the camera cut-out) in the reading colour
+                    w.getDecorView().setBackgroundColor(col);
+                    View content = getActivity().findViewById(android.R.id.content);
+                    if (content != null) content.setBackgroundColor(col);
+                    if (getBridge() != null && getBridge().getWebView() != null) getBridge().getWebView().setBackgroundColor(col);
+                    double lum = (0.299 * android.graphics.Color.red(col) + 0.587 * android.graphics.Color.green(col) + 0.114 * android.graphics.Color.blue(col)) / 255.0;
+                    c.setAppearanceLightStatusBars(lum > 0.6);
+                    c.setAppearanceLightNavigationBars(lum > 0.6);
+                }
                 if (on) {
                     c.setSystemBarsBehavior(WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE);
                     c.hide(WindowInsetsCompat.Type.systemBars());
