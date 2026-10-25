@@ -14,6 +14,9 @@ import android.os.Looper;
 import android.view.WindowManager;
 
 import androidx.core.app.ActivityCompat;
+import androidx.core.view.WindowCompat;
+import androidx.core.view.WindowInsetsCompat;
+import androidx.core.view.WindowInsetsControllerCompat;
 import androidx.core.content.ContextCompat;
 
 import com.getcapacitor.JSArray;
@@ -434,6 +437,30 @@ public class ReaderTtsPlugin extends Plugin {
             incoming = r;
         }
         main.post(() -> notifyListeners("incomingFile", new JSObject()));
+    }
+
+    /** Full-screen reading: hide the status and navigation bars (a swipe from the edge shows them for a moment). */
+    @PluginMethod
+    public void immersive(PluginCall call) {
+        boolean on = Boolean.TRUE.equals(call.getBoolean("on", true));
+        if (getActivity() == null) {
+            call.resolve();
+            return;
+        }
+        getActivity().runOnUiThread(() -> {
+            try {
+                android.view.Window w = getActivity().getWindow();
+                WindowInsetsControllerCompat c = WindowCompat.getInsetsController(w, w.getDecorView());
+                if (on) {
+                    c.setSystemBarsBehavior(WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE);
+                    c.hide(WindowInsetsCompat.Type.systemBars());
+                } else {
+                    c.show(WindowInsetsCompat.Type.systemBars());
+                }
+            } catch (Exception ignored) {
+            }
+        });
+        call.resolve();
     }
 
     private List<ReaderEngine.Item> parseItems(PluginCall call) {

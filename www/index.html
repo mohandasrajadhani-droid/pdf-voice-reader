@@ -333,6 +333,51 @@ details.vsd summary{cursor:pointer;font-weight:700;min-height:40px;display:flex;
   .txt{max-height:none;min-height:55vh}
   .stage{display:none}
 }
+
+/* ---------- full-screen reading view (like an e-reader) ---------- */
+.fs{position:fixed;inset:0;z-index:22;display:flex;flex-direction:column;background:var(--fs-bg);color:var(--fs-ink);-webkit-user-select:none;user-select:none;touch-action:pan-y}
+.fs[hidden]{display:none!important}
+.fs[data-theme=light]{--fs-bg:#fbfaf6;--fs-ink:#1e1d1a;--fs-mut:#8a877e;--fs-hl:#fbe3a0;--fs-bar:#ffffff;--fs-line:#e4e0d6}
+.fs[data-theme=sepia]{--fs-bg:#f3e9d2;--fs-ink:#3a2e1d;--fs-mut:#8c7a5c;--fs-hl:#e6c97e;--fs-bar:#f8f0dc;--fs-line:#dccfb2}
+.fs[data-theme=dark]{--fs-bg:#0d0d0c;--fs-ink:#d9d5cc;--fs-mut:#7c786f;--fs-hl:#5a4914;--fs-bar:#1a1a18;--fs-line:#2c2b28}
+.fs-view{flex:1 1 auto;position:relative;overflow:hidden;min-height:0}
+.fs-flow{position:absolute;top:0;left:0;column-fill:auto;font-family:var(--f-text);overflow-wrap:break-word;will-change:transform}
+.fs-flow.anim{transition:transform .28s ease}
+.fs-flow p{margin:0 0 .85em;text-align:start}
+.fs-flow .sn{border-radius:3px;transition:background .2s}
+.fs-flow .sn.cur{background:var(--fs-hl);box-shadow:0 0 0 2px var(--fs-hl)}
+.fs-flow .sn.skip{opacity:.55}
+.fs-msg{display:grid;place-items:center;height:100%;text-align:center;color:var(--fs-mut);font-size:1rem;padding:24px;line-height:1.6}
+.fs-msg .bar{width:min(260px,70vw);margin:12px auto 0;background:var(--fs-line)}
+.fs-foot{flex:none;display:flex;justify-content:space-between;gap:12px;padding:2px 18px calc(8px + env(safe-area-inset-bottom,0px));font-size:.74rem;color:var(--fs-mut);white-space:nowrap}
+.fs-foot span:first-child{overflow:hidden;text-overflow:ellipsis}
+.fs-bar{position:absolute;left:0;right:0;z-index:3;background:var(--fs-bar);color:var(--fs-ink);transition:transform .22s ease,opacity .22s ease;box-shadow:0 0 18px rgba(0,0,0,.18)}
+.fs-top{top:0;display:flex;align-items:center;gap:6px;padding:calc(6px + env(safe-area-inset-top,0px)) 8px 6px}
+.fs-top .t{flex:1;min-width:0;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.fs-top .t small{display:block;font-weight:400;font-size:.78rem;color:var(--fs-mut);overflow:hidden;text-overflow:ellipsis}
+.fs-bot{bottom:0;padding:8px 12px calc(10px + env(safe-area-inset-bottom,0px));display:grid;gap:6px}
+.fs.off .fs-top{transform:translateY(-110%);opacity:0;pointer-events:none}
+.fs.off .fs-bot{transform:translateY(110%);opacity:0;pointer-events:none}
+.fs-ib{width:44px;height:44px;min-height:44px;border:0;border-radius:50%;background:transparent;color:inherit;display:grid;place-items:center;font:inherit;font-weight:700;cursor:pointer;flex:none;position:relative}
+.fs-ib:active{background:var(--fs-line)}
+.fs-ib .sl{position:absolute;bottom:0;left:50%;transform:translateX(-50%);font-size:.58rem;font-weight:800}
+.fs-row{display:flex;align-items:center;justify-content:space-between;gap:4px}
+.fs-play{flex:none;min-width:120px;height:48px;border:0;border-radius:24px;background:var(--green);color:var(--green-ink);font:inherit;font-weight:700;font-size:1rem;display:flex;align-items:center;justify-content:center;gap:6px;cursor:pointer}
+.fs-prog{display:flex;align-items:center;gap:10px;font-size:.78rem;color:var(--fs-mut)}
+.fs-prog input{flex:1;accent-color:var(--green)}
+.fs-panel{position:absolute;left:8px;right:8px;bottom:calc(132px + env(safe-area-inset-bottom,0px));z-index:4;background:var(--fs-bar);color:var(--fs-ink);border:1px solid var(--fs-line);border-radius:16px;padding:14px;box-shadow:0 10px 30px rgba(0,0,0,.25);display:grid;gap:12px;max-height:70%;overflow:auto;max-width:520px;margin:0 auto}
+.fs-panel h4{margin:0;font-size:.78rem;letter-spacing:.06em;text-transform:uppercase;color:var(--fs-mut)}
+.fs-seg{display:flex;gap:6px;flex-wrap:wrap}
+.fs-seg button{flex:1;min-height:42px;border:1px solid var(--fs-line);background:transparent;color:inherit;border-radius:10px;font:inherit;font-weight:700;cursor:pointer;padding:0 10px}
+.fs-seg button[aria-pressed="true"]{border-color:var(--green);box-shadow:inset 0 0 0 2px var(--green)}
+.fs-seg .th-light{background:#fbfaf6;color:#1e1d1a}.fs-seg .th-sepia{background:#f3e9d2;color:#3a2e1d}.fs-seg .th-dark{background:#0d0d0c;color:#d9d5cc}
+.fs-list{display:grid;gap:2px}
+.fs-list button{display:flex;justify-content:space-between;gap:10px;text-align:left;border:0;background:transparent;color:inherit;font:inherit;padding:10px 8px;border-radius:8px;cursor:pointer;font-family:var(--f-text)}
+.fs-list button.cur{background:var(--fs-line)}
+.fs-list small{color:var(--fs-mut);white-space:nowrap}
+.fs-chk{display:flex;gap:10px;align-items:center;font-size:.92rem}
+#fsBtn{flex:none}
+@media (max-width:700px){#fsBtn{width:40px;min-height:44px;padding:0}}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
 /* ---------- phones: one-screen app ---------- */
 @media (hover:none){.drag-t{display:none}}
@@ -472,6 +517,7 @@ details.vsd summary{cursor:pointer;font-weight:700;min-height:40px;display:flex;
     <div class="rbar">
       <button class="btn sm" id="backBtn" aria-label="Back to documents">←<span class="back-t"> Documents</span></button>
       <div class="doc-name" id="docName"></div>
+      <button class="btn sm icon-btn" id="fsBtn" aria-label="Full-screen reading" title="Full-screen reading"><svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5" stroke="currentColor" stroke-width="2.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
       <button class="btn sm icon-btn" id="bmBtn" aria-label="Bookmark this place" title="Bookmark this place"><svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3h12v18l-6-4.5L6 21z" stroke="currentColor" stroke-width="2" fill="none" stroke-linejoin="round"/></svg></button>
       <div class="pager">
         <button class="btn sm icon-btn" id="prevBtn" aria-label="Previous page">‹</button>
@@ -645,6 +691,29 @@ details.vsd summary{cursor:pointer;font-weight:700;min-height:40px;display:flex;
   </div>
 </div>
 
+<div class="fs off" id="fs" hidden data-theme="light" role="dialog" aria-label="Full-screen reading">
+  <div class="fs-view" id="fsView"><div class="fs-flow" id="fsFlow"></div></div>
+  <div class="fs-foot" aria-hidden="true"><span id="fsFootL"></span><span id="fsFootR"></span></div>
+  <div class="fs-bar fs-top">
+    <button class="fs-ib" id="fsExit" aria-label="Leave full screen"><svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7" stroke="currentColor" stroke-width="2.4" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+    <div class="t"><span id="fsTitle"></span><small id="fsChap"></small></div>
+    <button class="fs-ib" id="fsToc" aria-label="Chapters and bookmarks"><svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h10" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg></button>
+    <button class="fs-ib" id="fsBm" aria-label="Bookmark this place"><svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3h12v18l-6-4.5L6 21z" stroke="currentColor" stroke-width="2" fill="none" stroke-linejoin="round"/></svg></button>
+    <button class="fs-ib" id="fsAa" aria-label="Text size and colours"><span style="font-size:.85rem">A</span><span style="font-size:1.2rem">A</span></button>
+  </div>
+  <div class="fs-bar fs-bot">
+    <div class="fs-prog"><span id="fsPgL">1</span><input type="range" id="fsSlider" min="1" max="1" value="1" aria-label="Go to page"><span id="fsPgR">1</span></div>
+    <div class="fs-row">
+      <button class="fs-ib" id="fsSleep" aria-label="Sleep timer"><svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z" stroke="currentColor" stroke-width="2" fill="none" stroke-linejoin="round"/></svg><span class="sl" id="fsSleepL"></span></button>
+      <button class="fs-ib" id="fsBack" aria-label="Back about 10 seconds">−10</button>
+      <button class="fs-play" id="fsPlay"><svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><path id="fsPlayIco" d="M8 5v14l11-7z" fill="currentColor"/></svg><span id="fsPlayL">Read aloud</span></button>
+      <button class="fs-ib" id="fsFwd" aria-label="Forward about 10 seconds">+10</button>
+      <button class="fs-ib" id="fsSpeed" aria-label="Reading speed">1×</button>
+      <button class="fs-ib" id="fsVoice" aria-label="Voice settings"><svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h10M18 7h2M4 17h4M12 17h8" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="16" cy="7" r="2.2" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="10" cy="17" r="2.2" fill="none" stroke="currentColor" stroke-width="2"/></svg></button>
+    </div>
+  </div>
+  <div class="fs-panel" id="fsPanel" hidden></div>
+</div>
 <div class="sheet pop" id="sleepSheet" hidden role="dialog" aria-modal="true" aria-labelledby="sleepTitle">
   <div class="sheet-card">
     <div class="sheet-h"><h2 id="sleepTitle">Sleep timer</h2><button class="btn sm" id="sleepClose">Done</button></div>
@@ -1598,6 +1667,7 @@ function enterReader(page){
   applyHF();renderBookmarks();renderToc();renderLangChips();
   const pdfNow=S.pdf;loadOutline(pdfNow).then(o=>{if(S.pdf!==pdfNow)return;S.outline=o;renderToc();rangeChapterBtn()});
   setTimeout(makeCover,1200);
+  if(FSSET.auto&&matchMedia("(max-width:1000px)").matches)fsOpen();
   const d=$("docInfo");d.textContent=`${fmtBytes(S.meta.size)} · added ${fmtDate(S.meta.added)}. `+(S.stored?"Saved in this browser only, with your text corrections.":"Too large to keep on this device; corrections are saved, but you will need to open the file again next time.");
 }
 function renderSummary(){
@@ -1664,6 +1734,7 @@ function showText(){
   if(p.hfCut&&p.hfCut.length&&!p.edited) n.push(`<div class="note hfnote">Left out of the text and reading: ${p.hfCut.map(l=>`“${esc(l.length>50?l.slice(0,50)+"…":l)}”`).join(", ")} (page number or repeated title). Turn this off in Tools if you want them.</div>`);
   $("notes").innerHTML=n.join("");
   applyTextVisibility();
+  if(typeof FS!=="undefined"&&FS&&FS.open)fsRender();
   if(typeof R!=="undefined"){if(!R.on&&!R.paused)idleHint();else updatePlayUI();renderAlong()}
 }
 $("txt").addEventListener("input",()=>{
@@ -1707,7 +1778,7 @@ document.addEventListener("keydown",e=>{
   if(e.key==="ArrowRight"||e.key==="PageDown")goTo(S.cur+1);
   if(e.key==="ArrowLeft"||e.key==="PageUp")goTo(S.cur-1);
 });
-$("backBtn").onclick=$("homeBtn").onclick=()=>{bgReset();if(typeof R!=="undefined")stopReading("");if(S.pdf){clearTimeout(S.saveT);if(S.meta)saveDoc()}show("home");renderRecents()};
+$("backBtn").onclick=$("homeBtn").onclick=()=>{if(FS.open)fsClose();bgReset();if(typeof R!=="undefined")stopReading("");if(S.pdf){clearTimeout(S.saveT);if(S.meta)saveDoc()}show("home");renderRecents()};
 
 /* mobile tabs */
 const TABS={text:"textPane",page:"pagePane",book:"bookBox",ask:"aiPanel",tools:"toolsBox"};
@@ -2138,7 +2209,7 @@ async function bgLoop(){
   else if(finished&&BG.done)toast(`OCR finished: ${BG.done} page${BG.done!==1?"s":""} read`+(failed?`, ${failed} could not be read`:""),!!failed);
   bgUI();
 }
-function bgUI(){
+function bgUI(){if(typeof FS!=="undefined"&&FS.open&&S.pages&&isWaiting(S.pages[S.cur-1])){const m=document.querySelector("#fsFlow .fs-msg .bar i");if(m&&BG.current===S.cur)m.style.width=Math.round((BG.frac||0)*100)+"%"}
   const bar=$("ocrBar");if(!S.pages||$("reader").hidden){bar.hidden=true;return}
   const left=bgPending().length+[...BG.force].filter(n=>!needsOcr(S.pages[n-1])).length;
   updateOcrTool();
@@ -2543,7 +2614,7 @@ function pageDone(g){
 const SLEEP={mode:"off",until:0,page:0,label:""};
 let sleepSync=function(){};
 function sleepShort(){if(SLEEP.mode==="min")return Math.max(1,Math.ceil((SLEEP.until-Date.now())/60000))+"m";if(SLEEP.mode==="page")return"page";if(SLEEP.mode==="chapter")return"ch.";return""}
-function sleepUI(){const on=SLEEP.mode!=="off",l=$("sleepLbl");l.hidden=!on;l.textContent=sleepShort();$("sleepBtn").classList.toggle("on",on);
+function sleepUI(){if(typeof FS!=="undefined"&&FS.open)setTimeout(fsPlayUI,0);const on=SLEEP.mode!=="off",l=$("sleepLbl");l.hidden=!on;l.textContent=sleepShort();$("sleepBtn").classList.toggle("on",on);
   $("sleepBtn").setAttribute("aria-label",on?`Sleep timer: ${SLEEP.label}${SLEEP.mode==="min"?`, ${sleepShort().replace("m"," minutes")} left`:""}`:"Sleep timer: off")}
 function setSleep(mode,val){
   SLEEP.mode=mode;SLEEP.until=0;SLEEP.page=0;
@@ -2607,6 +2678,7 @@ function pageStep(d){
   }else goTo(n);
 }
 function updatePlayUI(){
+  if(typeof FS!=="undefined"&&FS.open)setTimeout(fsPlayUI,0);
   $("playLbl").textContent=R.on?"Pause":R.paused?"Resume":(window.innerWidth<=700?"Play":"Read aloud");
   $("playIco").setAttribute("d",R.on?"M7 5h4v14H7zM13 5h4v14h-4z":"M8 5v14l11-7z");
   const act=R.on||R.paused;
@@ -2662,6 +2734,7 @@ function renderAlong(){
   box.innerHTML=h+"</p>";box.dir="auto";renderAlongActive();
 }
 function renderAlongActive(){
+  if(typeof FS!=="undefined"&&FS.open)fsActive();
   const box=$("along");if(!box||box.hidden)return;
   box.querySelectorAll(".sn.cur").forEach(e=>e.classList.remove("cur"));
   if(!(R.on||R.paused)||R.custom||R.page!==S.cur)return;
@@ -3310,6 +3383,7 @@ if(NATIVE_TTS){
     if(App)App.addListener("backButton",()=>{
       if(!$("sheet").hidden){closeSheet();return}
       if(!$("sleepSheet").hidden){$("sleepClose").click();return}
+      if(FS.open){if(!$("fsPanel").hidden){$("fsPanel").hidden=true;return}fsClose();return}
       if(!$("reader").hidden){$("backBtn").click();return}
       App.exitApp();
     });
@@ -3322,6 +3396,162 @@ if(NATIVE_TTS){
     await loadNativeVoices();
   })();
 }
+
+
+/* ---------- full-screen reading view ----------
+   The page's text flows into screen-wide columns; swiping or tapping the edges moves one screen,
+   and past the last screen to the next page. Reading aloud highlights the sentence and turns screens. */
+var FSSET={size:21,line:1.75,margin:"normal",theme:"light",auto:true};
+try{const o=JSON.parse(localStorage.getItem("pvr-fs")||"{}");if(o&&typeof o==="object")Object.assign(FSSET,o)}catch(e){}
+function saveFsSet(){try{localStorage.setItem("pvr-fs",JSON.stringify(FSSET))}catch(e){}}
+var FS={open:false,k:0,n:1,page:0,goEnd:false,W:0,lp:null,moved:false,downX:0,downY:0,downT:0,longFired:false};
+const fsMargin=()=>({narrow:16,normal:26,wide:44}[FSSET.margin]||26);
+function fsApplySet(){
+  const fs=$("fs");fs.dataset.theme=FSSET.theme;
+  const f=$("fsFlow");f.style.fontSize=FSSET.size+"px";f.style.lineHeight=String(FSSET.line);
+  try{const c=getComputedStyle(fs).getPropertyValue("--fs-bg").trim();document.querySelector('meta[name="theme-color"]')&&c&&document.querySelector('meta[name="theme-color"]').setAttribute("content",c)}catch(e){}
+}
+function fsLayout(){
+  const v=$("fsView"),f=$("fsFlow"),W=v.clientWidth,H=v.clientHeight,P=fsMargin(),T=Math.max(18,Math.round(FSSET.size*.9));
+  FS.W=W;
+  Object.assign(f.style,{left:P+"px",top:T+"px",width:Math.max(100,W-2*P)+"px",height:Math.max(100,H-T-6)+"px",columnWidth:Math.max(100,W-2*P)+"px",columnGap:2*P+"px"});
+  FS.n=Math.max(1,Math.round((f.scrollWidth+2*P)/W));
+}
+function fsMove(k,anim){
+  FS.k=Math.max(0,Math.min(FS.n-1,k));
+  const f=$("fsFlow");f.classList.toggle("anim",!!anim&&!matchMedia("(prefers-reduced-motion: reduce)").matches);
+  f.style.transform=`translateX(${-FS.k*FS.W}px)`;
+  fsFoot();
+}
+function fsFoot(){
+  if(!S.pdf)return;const n=S.pages.length,c=chapterAt(S.cur);
+  const pct=Math.round(((S.cur-1)+(FS.k+1)/FS.n)/n*100);
+  $("fsFootL").textContent=c?c.title:docName();
+  $("fsFootR").textContent=`${FS.n>1?`${FS.k+1}/${FS.n} · `:""}page ${S.cur} of ${n} · ${pct}%`;
+  $("fsTitle").textContent=docName();$("fsChap").textContent=c?c.title:`Page ${S.cur} of ${n}`;
+  $("fsSlider").max=n;$("fsSlider").value=S.cur;$("fsPgL").textContent=S.cur;$("fsPgR").textContent=n;
+}
+function fsRender(){
+  if(!FS.open||!S.pdf)return;
+  const same=FS.page===S.cur,keep=FS.k;FS.page=S.cur;
+  const p=S.pages[S.cur-1],b=buildChunks(S.cur),f=$("fsFlow");
+  if(b.needOcr){
+    f.innerHTML=`<div class="fs-msg"><div><b>Reading this page with OCR…</b><br>${BG.running&&BG.current===S.cur?`${Math.round((BG.frac||0)*100)}%`:"It's in the queue."}<br><span class="muted">The text appears here as soon as it's ready.</span><div class="bar"><i style="width:${BG.current===S.cur?Math.round((BG.frac||0)*100):0}%"></i></div></div></div>`;
+  }else if(!b.chunks.length){
+    f.innerHTML=`<div class="fs-msg"><div>${p&&p.kind==="scan"?"This page is a picture with no text yet.":"No text on this page."}<br><span class="muted">Swipe to the next page.</span></div></div>`;
+  }else{
+    let h='<p dir="auto">';
+    b.chunks.forEach((c,i)=>{h+=`<span class="sn${c.parts.length?"":" skip"}" data-ci="${i}">${esc(c.display)}</span> `;if(c.paraEnd&&i<b.chunks.length-1)h+='</p><p dir="auto">'});
+    f.innerHTML=h+"</p>";
+  }
+  fsApplySet();fsLayout();
+  fsMove(FS.goEnd?FS.n-1:same?keep:0,false);FS.goEnd=false;
+  fsActive();
+}
+/* highlight the sentence being read, and bring its screen into view */
+function fsActive(){
+  if(!FS.open)return;
+  const f=$("fsFlow");f.querySelectorAll(".sn.cur").forEach(e=>e.classList.remove("cur"));
+  if(!(R.on||R.paused)||R.custom||R.page!==S.cur)return;
+  const el=f.querySelector(`[data-ci="${R.ci}"]`);if(!el)return;el.classList.add("cur");
+  const r=el.getClientRects()[0],fr=f.getBoundingClientRect();if(!r)return;
+  const k=Math.floor((r.left-fr.left+2)/FS.W);
+  if(k!==FS.k)fsMove(k,true);
+}
+function fsNext(){if(FS.k<FS.n-1){fsMove(FS.k+1,true);return}if(S.cur<S.pages.length){FS.goEnd=false;pageStep(1)}else toast("End of the book")}
+function fsPrev(){if(FS.k>0){fsMove(FS.k-1,true);return}if(S.cur>1){FS.goEnd=true;pageStep(-1)}}
+function fsChrome(show){$("fs").classList.toggle("off",!show);if(!show)$("fsPanel").hidden=true}
+function fsPlayUI(){
+  if(!FS.open)return;
+  $("fsPlayL").textContent=R.on?"Pause":R.paused?"Resume":"Read aloud";
+  $("fsPlayIco").setAttribute("d",R.on?"M7 5h4v14H7zM13 5h4v14h-4z":"M8 5v14l11-7z");
+  $("fsSpeed").textContent=`${VS.rate}×`;
+  const on=typeof SLEEP!=="undefined"&&SLEEP.mode!=="off";$("fsSleepL").textContent=on?sleepShort():"";
+  $("fsBack").disabled=$("fsFwd").disabled=!(R.on||R.paused);
+}
+function fsImmersive(on){
+  if(NATIVE_TTS&&NATIVE_TTS.immersive){NATIVE_TTS.immersive({on}).catch(()=>{});return}
+  try{if(on&&document.documentElement.requestFullscreen&&!document.fullscreenElement&&matchMedia("(max-width:1000px)").matches)document.documentElement.requestFullscreen({navigationUI:"hide"}).catch(()=>{});
+      else if(!on&&document.fullscreenElement)document.exitFullscreen().catch(()=>{})}catch(e){}
+}
+function fsOpen(){
+  if(!S.pdf)return;
+  FS.open=true;FS.page=0;$("fs").hidden=false;fsChrome(false);fsImmersive(true);
+  requestAnimationFrame(()=>{fsRender();fsPlayUI()});
+  try{if(!localStorage.getItem("pvr-fs-hint")){localStorage.setItem("pvr-fs-hint","1");toast("Swipe or tap the edges to turn pages. Tap the middle for controls.")}}catch(e){}
+}
+function fsClose(){
+  FS.open=false;$("fs").hidden=true;$("fsPanel").hidden=true;fsImmersive(false);
+  if(typeof renderAlong==="function")renderAlong();
+}
+$("fsBtn").onclick=fsOpen;$("fsExit").onclick=fsClose;
+$("fsPlay").onclick=()=>$("playBtn").click();
+$("fsBack").onclick=()=>$("lBack").click();$("fsFwd").onclick=()=>$("lFwd").click();
+$("fsSpeed").onclick=()=>{$("speedBtn").click();fsPlayUI()};
+$("fsSleep").onclick=()=>openSleep();
+$("fsVoice").onclick=()=>openSheet();
+$("fsBm").onclick=()=>addBookmark();
+$("fsSlider").addEventListener("input",()=>{$("fsPgL").textContent=$("fsSlider").value});
+$("fsSlider").addEventListener("change",()=>{const n=+$("fsSlider").value;if(n!==S.cur)goTo(n)});
+/* gestures: swipe or tap the side to turn, tap the middle for controls, hold a sentence to read from it */
+const fsView=$("fsView");
+fsView.addEventListener("pointerdown",e=>{
+  FS.downX=e.clientX;FS.downY=e.clientY;FS.downT=Date.now();FS.moved=false;FS.longFired=false;
+  clearTimeout(FS.lp);const sn=e.target.closest(".sn");
+  if(sn&&!sn.classList.contains("skip"))FS.lp=setTimeout(()=>{FS.longFired=true;alongStart(+sn.dataset.ci);toast("Reading from this sentence");if(navigator.vibrate)try{navigator.vibrate(20)}catch(_){}},550);
+});
+fsView.addEventListener("pointermove",e=>{if(Math.abs(e.clientX-FS.downX)>12||Math.abs(e.clientY-FS.downY)>12){FS.moved=true;clearTimeout(FS.lp)}});
+fsView.addEventListener("pointercancel",()=>clearTimeout(FS.lp));
+fsView.addEventListener("pointerup",e=>{
+  clearTimeout(FS.lp);if(FS.longFired)return;
+  const dx=e.clientX-FS.downX,dy=e.clientY-FS.downY;
+  if(Math.abs(dx)>45&&Math.abs(dx)>Math.abs(dy)*1.2){if(dx<0)fsNext();else fsPrev();return}
+  if(FS.moved)return;
+  const w=fsView.clientWidth,x=e.clientX-fsView.getBoundingClientRect().left;
+  if(!$("fsPanel").hidden){$("fsPanel").hidden=true;return}
+  if(x<w*.27)fsPrev();else if(x>w*.73)fsNext();else fsChrome($("fs").classList.contains("off"));
+});
+fsView.addEventListener("contextmenu",e=>e.preventDefault());
+document.addEventListener("keydown",e=>{
+  if(!FS.open||!$("sheet").hidden||!$("sleepSheet").hidden)return;
+  if(e.key==="ArrowRight"||e.key==="PageDown"||e.key===" "&&!R.on){e.preventDefault();e.stopImmediatePropagation();fsNext()}
+  else if(e.key==="ArrowLeft"||e.key==="PageUp"){e.preventDefault();e.stopImmediatePropagation();fsPrev()}
+  else if(e.key==="Escape"){e.stopImmediatePropagation();if(!$("fsPanel").hidden)$("fsPanel").hidden=true;else fsClose()}
+},true);
+let fsRz;window.addEventListener("resize",()=>{if(!FS.open)return;clearTimeout(fsRz);fsRz=setTimeout(()=>{const k=FS.k;fsLayout();fsMove(Math.min(k,FS.n-1));fsActive()},150)});
+/* text size, spacing, margins and colours */
+function fsSettingsPanel(){
+  const P=$("fsPanel");
+  P.innerHTML=`<h4>Text size</h4>
+    <div class="fs-seg"><button data-fsz="-2" aria-label="Smaller text">A−</button><button disabled style="flex:2">${FSSET.size}px</button><button data-fsz="2" aria-label="Larger text">A+</button></div>
+    <h4>Line spacing</h4>
+    <div class="fs-seg">${[["Compact",1.5],["Normal",1.75],["Relaxed",2.05]].map(([l,v])=>`<button data-fsl="${v}" aria-pressed="${FSSET.line===v}">${l}</button>`).join("")}</div>
+    <h4>Margins</h4>
+    <div class="fs-seg">${[["Narrow","narrow"],["Normal","normal"],["Wide","wide"]].map(([l,v])=>`<button data-fsm="${v}" aria-pressed="${FSSET.margin===v}">${l}</button>`).join("")}</div>
+    <h4>Colours</h4>
+    <div class="fs-seg">${[["Light","light"],["Sepia","sepia"],["Dark","dark"]].map(([l,v])=>`<button class="th-${v}" data-fst="${v}" aria-pressed="${FSSET.theme===v}">${l}</button>`).join("")}</div>
+    <label class="fs-chk"><input type="checkbox" id="fsAuto"${FSSET.auto?" checked":""}> Open books in full screen</label>`;
+  P.hidden=false;
+}
+function fsTocPanel(){
+  const P=$("fsPanel"),ol=S.outline||[],bms=(S.meta&&S.meta.bookmarks)||[],c=chapterAt(S.cur);
+  P.innerHTML=`<h4>Chapters</h4><div class="fs-list">${ol.length?ol.map((o,i)=>`<button data-fsgo="${o.page}"${c&&c.i===i?' class="cur"':""} style="padding-left:${8+o.depth*16}px"><span>${esc(o.title)}</span><small>p.${o.page}</small></button>`).join(""):`<div class="muted" style="padding:6px 8px">No chapter list in this book.</div>`}</div>
+    <h4>Bookmarks</h4><div class="fs-list">${bms.length?bms.map(b=>`<button data-fsgo="${b.page}" data-fss="${b.s}"><span>${esc(b.text||"")}</span><small>p.${b.page}</small></button>`).join(""):`<div class="muted" style="padding:6px 8px">No bookmarks yet. Tap the bookmark button above.</div>`}</div>`;
+  P.hidden=false;
+}
+$("fsAa").onclick=()=>{if(!$("fsPanel").hidden&&$("fsPanel").querySelector("[data-fsz]")){$("fsPanel").hidden=true;return}fsSettingsPanel()};
+$("fsToc").onclick=()=>{if(!$("fsPanel").hidden&&!$("fsPanel").querySelector("[data-fsz]")){$("fsPanel").hidden=true;return}fsTocPanel()};
+$("fsPanel").addEventListener("click",e=>{
+  const b=e.target.closest("button");if(!b)return;
+  if(b.dataset.fsz){FSSET.size=Math.max(14,Math.min(40,FSSET.size+ +b.dataset.fsz))}
+  else if(b.dataset.fsl)FSSET.line=+b.dataset.fsl;
+  else if(b.dataset.fsm)FSSET.margin=b.dataset.fsm;
+  else if(b.dataset.fst)FSSET.theme=b.dataset.fst;
+  else if(b.dataset.fsgo){const n=+b.dataset.fsgo;$("fsPanel").hidden=true;fsChrome(false);goTo(n);if(b.dataset.fss!=null&&S.meta){S.meta.lastSentence=+b.dataset.fss;putMeta(S.meta);if(!R.on&&!R.paused)idleHint()}return}
+  else return;
+  saveFsSet();fsSettingsPanel();const ci=R.on||R.paused?null:FS.k;fsRender();if(ci!=null)fsMove(Math.min(ci,FS.n-1));
+});
+$("fsPanel").addEventListener("change",e=>{if(e.target.id==="fsAuto"){FSSET.auto=e.target.checked;saveFsSet()}});
 
 /* boot */
 renderLangChips();
