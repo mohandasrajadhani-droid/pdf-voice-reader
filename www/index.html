@@ -2448,9 +2448,10 @@ async function wakeOn(){
     await Promise.race([KA.video.play(),new Promise((_,rej)=>setTimeout(()=>rej(new Error("timeout")),2500))]);KA.mode="video";
   }catch(e){KA.mode="none"}
 }
-function wakeOff(){try{KA.lock&&KA.lock.release()}catch(e){}KA.lock=null;try{KA.video&&KA.video.pause()}catch(e){}KA.mode=""}
+function wakeOff(){if(fsWantsScreen())return;try{KA.lock&&KA.lock.release()}catch(e){}KA.lock=null;try{KA.video&&KA.video.pause()}catch(e){}KA.mode=""}
 function screenStatus(){return KA.mode==="lock"?"Screen is kept on while reading.":KA.mode==="video"?"Screen is kept on while reading (backup method).":KA.mode==="none"?"This browser won't keep the screen on. Set a longer screen timeout in Android Settings → Display.":"The screen is kept on while reading."}
 document.addEventListener("visibilitychange",()=>{
+  if(document.visibilityState==="visible"&&fsWantsScreen())wakeOn();
   if(document.visibilityState!=="visible"||!R.on)return;
   wakeOn();
   // if the phone stopped the voice while the screen was off, carry on from the same sentence
@@ -3318,9 +3319,9 @@ if(NATIVE_TTS){
     NATIVE_TTS.sample({items:[{tag:"sample",text,lang:vLang(v),voice:v.name,engine:v.engine||"",rate:VS.rate,pitch:pitchFor(lang),page:0}]}).catch(()=>{});
   };
   // the screen only needs to stay on while OCR runs; reading works with it off
-  wakeOn=async function(){if(BG.running){NATIVE_TTS.keepScreenOn({on:true}).catch(()=>{});KA.mode="native"}};
-  wakeOff=function(){if(!BG.running){NATIVE_TTS.keepScreenOn({on:false}).catch(()=>{});KA.mode=""}};
-  screenStatus=function(){return"Reading continues with the screen off. Use the notification to pause or stop. The screen stays on only while OCR is working."};
+  wakeOn=async function(){if(BG.running||fsWantsScreen()){NATIVE_TTS.keepScreenOn({on:true}).catch(()=>{});KA.mode="native"}};
+  wakeOff=function(){if(!BG.running&&!fsWantsScreen()){NATIVE_TTS.keepScreenOn({on:false}).catch(()=>{});KA.mode=""}};
+  screenStatus=function(){return"Reading continues with the screen off. Use the notification to pause or stop. The screen stays on in full-screen reading and while OCR is working."};
   mediaOn=function(){};mediaOff=function(){};mediaMeta=function(){};
   NATIVE_FILES=NATIVE_TTS;
   // match Android's window edges to the app's light or dark look
@@ -3405,10 +3406,10 @@ if(NATIVE_TTS){
 /* ---------- full-screen reading view ----------
    The page's text flows into screen-wide columns; swiping or tapping the edges moves one screen,
    and past the last screen to the next page. Reading aloud highlights the sentence and turns screens. */
-var FSSET={size:21,line:1.75,margin:"normal",theme:"auto",auto:true};
+var FSSET={size:21,line:1.75,margin:"normal",theme:"auto",auto:true,keep:true};
 try{const o=JSON.parse(localStorage.getItem("pvr-fs")||"{}");if(o&&typeof o==="object")Object.assign(FSSET,o)}catch(e){}
 function saveFsSet(){try{localStorage.setItem("pvr-fs",JSON.stringify(FSSET))}catch(e){}}
-var FS={open:false,k:0,n:1,page:0,goEnd:false,W:0,lp:null,moved:false,downX:0,downY:0,downT:0,longFired:false};
+var FS={lastTouch:Date.now(),open:false,k:0,n:1,page:0,goEnd:false,W:0,lp:null,moved:false,downX:0,downY:0,downT:0,longFired:false};
 /* "auto" follows the phone's dark mode */
 const fsTheme=()=>FSSET.theme==="auto"?(matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"):FSSET.theme;
 try{matchMedia("(prefers-color-scheme: dark)").addEventListener("change",()=>{if(FS.open&&FSSET.theme==="auto")fsApplySet()})}catch(e){}
@@ -3484,14 +3485,20 @@ function fsImmersive(on){
   try{if(on&&document.documentElement.requestFullscreen&&!document.fullscreenElement&&matchMedia("(max-width:1000px)").matches)document.documentElement.requestFullscreen({navigationUI:"hide"}).catch(()=>{});
       else if(!on&&document.fullscreenElement)document.exitFullscreen().catch(()=>{})}catch(e){}
 }
+/* keep the screen on in full screen, like an e-reader; let it sleep after an hour without a touch (unless reading aloud) */
+const FS_IDLE=60*60*1000;
+function fsWantsScreen(){return typeof FS!=="undefined"&&FS&&FS.open&&FSSET.keep&&(R.on||Date.now()-FS.lastTouch<FS_IDLE)}
+function fsTouch(){const was=fsWantsScreen();FS.lastTouch=Date.now();if(!was&&fsWantsScreen())wakeOn()}
+setInterval(()=>{if(typeof FS!=="undefined"&&FS.open&&FSSET.keep&&!fsWantsScreen()&&!R.on)wakeOff()},60000);
+["pointerdown","keydown"].forEach(ev=>document.addEventListener(ev,()=>{if(typeof FS!=="undefined"&&FS.open)fsTouch()},true));
 function fsOpen(){
   if(!S.pdf)return;
-  FS.open=true;FS.page=0;$("fs").hidden=false;fsChrome(false);fsImmersive(true);
+  FS.open=true;FS.lastTouch=Date.now();if(FSSET.keep)wakeOn();FS.page=0;$("fs").hidden=false;fsChrome(false);fsImmersive(true);
   requestAnimationFrame(()=>{fsRender();fsPlayUI()});
   try{if(!localStorage.getItem("pvr-fs-hint")){localStorage.setItem("pvr-fs-hint","1");toast("Swipe or tap the edges to turn pages. Tap the middle for controls.")}}catch(e){}
 }
 function fsClose(){
-  FS.open=false;$("fs").hidden=true;$("fsPanel").hidden=true;fsImmersive(false);
+  FS.open=false;if(!R.on)wakeOff();$("fs").hidden=true;$("fsPanel").hidden=true;fsImmersive(false);
   if(typeof renderAlong==="function")renderAlong();
 }
 $("fsBtn").onclick=fsOpen;$("fsExit").onclick=fsClose;
@@ -3540,6 +3547,7 @@ function fsSettingsPanel(){
     <div class="fs-seg">${[["Narrow","narrow"],["Normal","normal"],["Wide","wide"]].map(([l,v])=>`<button data-fsm="${v}" aria-pressed="${FSSET.margin===v}">${l}</button>`).join("")}</div>
     <h4>Colours</h4>
     <div class="fs-seg">${[["Auto","auto"],["Light","light"],["Sepia","sepia"],["Black","dark"]].map(([l,v])=>`<button class="th-${v}" data-fst="${v}" aria-pressed="${FSSET.theme===v}">${l}</button>`).join("")}</div>
+    <label class="fs-chk"><input type="checkbox" id="fsKeep"${FSSET.keep?" checked":""}> Keep the screen on in full screen</label>
     <label class="fs-chk"><input type="checkbox" id="fsAuto"${FSSET.auto?" checked":""}> Open books in full screen</label>`;
   P.hidden=false;
 }
@@ -3562,7 +3570,8 @@ $("fsPanel").addEventListener("click",e=>{
   else return;
   saveFsSet();fsSettingsPanel();const ci=R.on||R.paused?null:FS.k;fsRender();if(ci!=null)fsMove(Math.min(ci,FS.n-1));
 });
-$("fsPanel").addEventListener("change",e=>{if(e.target.id==="fsAuto"){FSSET.auto=e.target.checked;saveFsSet()}});
+$("fsPanel").addEventListener("change",e=>{if(e.target.id==="fsAuto"){FSSET.auto=e.target.checked;saveFsSet()}
+  if(e.target.id==="fsKeep"){FSSET.keep=e.target.checked;saveFsSet();if(FSSET.keep)wakeOn();else if(!R.on)wakeOff();toast(FSSET.keep?"The screen stays on in full screen":"The screen follows your phone's sleep setting")}});
 
 /* boot */
 renderLangChips();
