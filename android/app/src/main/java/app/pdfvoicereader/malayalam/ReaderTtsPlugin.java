@@ -440,6 +440,23 @@ public class ReaderTtsPlugin extends Plugin {
         main.post(() -> notifyListeners("incomingFile", new JSObject()));
     }
 
+    /** Opens this app's page in Android settings, where battery use can be set to Unrestricted. */
+    @PluginMethod
+    public void openBatterySettings(PluginCall call) {
+        if (getActivity() == null) {
+            call.reject("no screen");
+            return;
+        }
+        try {
+            Intent i = new Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:" + getContext().getPackageName()));
+            i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            getActivity().startActivity(i);
+            call.resolve();
+        } catch (Exception e) {
+            call.reject("settings not available");
+        }
+    }
+
     /** Full-screen reading: hide the status and navigation bars (a swipe from the edge shows them for a moment). */
     @PluginMethod
     public void immersive(PluginCall call) {

@@ -2191,6 +2191,7 @@ async function bgLoop(){
       if(r==="cancelled"){BG.queue.unshift(i);break}
       BG.force.delete(i);BG.done++;delete p.ocrError;
       await saveDoc();
+      if(nativeAppend)nativeAppend();
       if(i===S.cur)showText();
       if(R.waitPage===i)resumeAfterOcr(i);
     }catch(e){
@@ -2416,6 +2417,8 @@ function cumTimes(ch){const c=[0];for(const x of ch)c.push(c[c.length-1]+estChun
 function fmtTime(s){s=Math.max(0,Math.round(s));const m=Math.floor(s/60);return`${m}:${String(s%60).padStart(2,"0")}`}
 
 /* ---- reading engine ---- */
+/* Android app: adds pages to the phone's reading queue as OCR finishes them (set up at the end of this script) */
+let nativeAppend=null;
 const R={on:false,paused:false,gen:0,page:1,chunks:[],ci:0,pi:0,utt:null,uttStart:0,uttMax:0,chunkStart:0,errs:0,keep:[],wake:null,engineNav:false,custom:false,customLabel:""};
 function needVoices(chunks){const n={};chunks.forEach(c=>c.parts.forEach(x=>n[x.lang]=true));return n}
 function missingVoiceMsg(lang){
@@ -2864,6 +2867,7 @@ function renderVoiceSettings(){
     <label class="chk" for="vsCont"><input type="checkbox" id="vsCont"${VS.cont?" checked":""}> Continue to the next page automatically</label>
     ${NATIVE_TTS?"":`<label class="chk" for="vsBg"><input type="checkbox" id="vsBg"${VS.bg?" checked":""}> Show controls on the lock screen (experimental)</label>`}
     <div class="note">${screenStatus()}</div>
+    ${NATIVE_TTS?`<div class="muted">Reading stops when the app is minimised? Samsung and some other phones pause apps to save battery. Set this app's battery use to “Unrestricted”.</div><div><button class="btn sm" data-natbattery>Open battery setting</button></div>`:""}
     <details class="vsd"><summary>All ${VOICES.length} voices</summary><div class="vlist">${VOICES.map(v=>`<span>${esc(vLang(v))} · ${esc(v.name)}${v.localService===false?" · online":""}${v.notInstalled?" · not downloaded":""}</span>`).join("")||"None"}</div></details>
   </div></details>`;
 }
@@ -3273,9 +3277,21 @@ if(NATIVE_TTS){
   });
   $("vsBody").addEventListener("click",e=>{
     if(e.target.closest("[data-natinstall]"))NATIVE_TTS.openTtsSettings({install:true,engine:engFor("ml")}).catch(()=>toast("Open Android Settings → Text-to-speech output → the engine's settings → Install voice data.",true));
+    if(e.target.closest("[data-natbattery]"))NATIVE_TTS.openBatterySettings().then(()=>toast("Tap Battery, then choose Unrestricted.")).catch(()=>toast("Open Settings → Apps → PDF Voice Reader → Battery → Unrestricted.",true));
     if(e.target.closest("[data-natsettings]"))NATIVE_TTS.openTtsSettings({install:false}).catch(()=>toast("Open Android Settings and search for “Text-to-speech output”.",true));
   });
   const itemFor=(tag,part,page)=>{const v=pickFor(part.lang);return v?{tag,text:part.text,lang:vLang(v),voice:v.name,engine:v.engine||"",rate:VS.rate,pitch:pitchFor(part.lang),page}:null};
+  /* pages finished by OCR while reading go straight onto Android's queue, so reading carries on even when the app is minimised */
+  nativeAppend=function(){
+    if(!R.on||R.custom||!VS.cont||N.gen!==R.gen||!S.pages||N.lastPage>=S.pages.length)return;
+    const g=N.gen,items=[];
+    for(let p=N.lastPage+1;p<=S.pages.length&&items.length<20000;p++){
+      const b=buildChunks(p);if(b.needOcr)break;
+      b.chunks.forEach((c,i)=>c.parts.forEach((part,j)=>{const tag=`${g}|${p}|${i}|${j}`;const it=itemFor(tag,part,p);if(it){items.push(it);N.map.set(tag,{page:p,i,j,chunks:b.chunks})}}));
+      N.lastPage=p;
+    }
+    if(items.length)NATIVE_TTS.speak({items,append:true}).catch(()=>{});
+  };
   speakFrom=function(ci){
     const g=++R.gen;R.utt=null;
     R.ci=Math.max(0,Math.min(ci,R.chunks.length));R.pi=0;
@@ -3285,7 +3301,7 @@ if(NATIVE_TTS){
     N.lastPage=R.page;
     if(!R.custom&&VS.cont){
       // hand Android every following page that already has text, so it keeps going with the screen off
-      for(let p=R.page+1;p<=S.pages.length&&items.length<4000;p++){
+      for(let p=R.page+1;p<=S.pages.length&&items.length<20000;p++){
         const b=buildChunks(p);if(b.needOcr)break;
         add(p,b.chunks,0);N.lastPage=p;
       }
