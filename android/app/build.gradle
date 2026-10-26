@@ -7,8 +7,10 @@ android {
         applicationId "app.pdfvoicereader.malayalam"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 1
-        versionName "1.0"
+        // every build gets a higher number, so a new APK installs over the old one
+        def buildNo = (System.getenv("GITHUB_RUN_NUMBER") ?: "1").toInteger()
+        versionCode 100 + buildNo
+        versionName "1.0." + buildNo
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
@@ -16,8 +18,22 @@ android {
             ignoreAssetsPattern = '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
         }
     }
+    // One fixed key for the APKs on GitHub, so each update installs over the previous one.
+    // (A Play Store release uses its own private upload key, kept outside this project.)
+    signingConfigs {
+        sideload {
+            storeFile file("signing/sideload.jks")
+            storePassword "pvr-sideload-2026"
+            keyAlias "pdfvoicereader"
+            keyPassword "pvr-sideload-2026"
+        }
+    }
     buildTypes {
+        debug {
+            signingConfig signingConfigs.sideload
+        }
         release {
+            signingConfig signingConfigs.sideload
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }

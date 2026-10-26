@@ -32,10 +32,10 @@ jobs:
         working-directory: android
         run: |
           chmod +x gradlew
-          ./gradlew assembleDebug --no-daemon
+          ./gradlew assembleRelease --no-daemon
 
       - name: Name the APK
-        run: cp android/app/build/outputs/apk/debug/app-debug.apk PDF-Voice-Reader.apk
+        run: cp android/app/build/outputs/apk/release/app-release.apk PDF-Voice-Reader.apk
 
       - uses: actions/upload-artifact@v4
         with:
@@ -49,6 +49,7 @@ jobs:
           name: PDF Voice Reader (build ${{ github.run_number }})
           body: |
             Open this page on your Android phone and tap **PDF-Voice-Reader.apk** to download and install.
+            From build 15 on, each new APK installs over the previous one; no need to uninstall.
             Built from commit ${{ github.sha }}.
           files: PDF-Voice-Reader.apk
           make_latest: true
