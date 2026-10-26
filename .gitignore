@@ -8,3 +8,6 @@ android/build/
 android/app/build/
 android/local.properties
 *.apk
+
+# Secrets (Sarvam API key)
+.env
