@@ -511,7 +511,8 @@ public class ReaderTtsPlugin extends Plugin {
                     (float) o.optDouble("rate", 1.0),
                     (float) o.optDouble("pitch", 1.0),
                     o.optInt("page", 0),
-                    o.optString("engine", "")
+                    o.optString("engine", ""),
+                    o.optInt("pause", 0)
                 ));
             }
         } catch (Exception e) {

@@ -2292,14 +2292,22 @@ const SAMPLE_ML=LANGS.ml.sample;
 const sampleEn=acc=>`Hello. This is the ${acc} voice. Kannur, Thaliparamba and Iritty.`;
 const SPEEDS=[.75,1,1.25,1.5,2];
 const VS_KEY="pvr-voice-v1";
-const VS={mode:"auto",mlVoice:"",accent:"",enVoice:"",rate:1,pitch:1,pitchMl:1,pitchEn:1,volume:1,cont:true,bg:false,voices:{},pitches:{},engines:{},
+const VS={natural:true,mode:"auto",mlVoice:"",accent:"",enVoice:"",rate:1,pitch:1,pitchMl:1,pitchEn:1,volume:1,cont:true,bg:false,voices:{},pitches:{},engines:{},
   dict:[{from:"Rs.",to:"rupees"},{from:"Iritty",to:"ഇരിട്ടി"}]};
 try{const s=JSON.parse(localStorage.getItem(VS_KEY)||"{}");if(s&&typeof s==="object")Object.assign(VS,s)}catch(e){}
 const TONES=[["Deep",.8],["Lower",.9],["Normal",1],["Higher",1.1]];
+/* "Natural reading": pause like a person reading aloud — briefly after a sentence, longer at the end of a
+   paragraph and after a heading — and read at a slightly calmer pace */
+const NAT={sent:300,para:750,head:950,pace:.93};
+function isHeading(ch){const d=(ch.display||"").trim();return ch.paraEnd&&d.length>0&&d.length<70&&!/[.!?।؟:;,"”’)\]]$/.test(d)}
+function pauseAfter(ch){if(!VS.natural||!ch)return 0;return isHeading(ch)?NAT.head:ch.paraEnd?NAT.para:NAT.sent}
+const speakRate=()=>VS.rate*(VS.natural?NAT.pace:1);
 function pitchFor(lang){const p=lang==="ml"?VS.pitchMl:lang==="en"?VS.pitchEn:(VS.pitches||{})[lang];return typeof p==="number"?p:1}
 function setPitch(lang,v){if(lang==="ml")VS.pitchMl=v;else if(lang==="en")VS.pitchEn=v;else{VS.pitches=VS.pitches||{};VS.pitches[lang]=v}}
 function voicePref(lang){return lang==="ml"?VS.mlVoice:lang==="en"?VS.enVoice:(VS.voices||{})[lang]||""}
 function setVoicePref(lang,k){if(lang==="ml")VS.mlVoice=k;else if(lang==="en")VS.enVoice=k;else{VS.voices=VS.voices||{};VS.voices[lang]=k}}
+const NAT_SAMPLE={ml:"ഒരു ചെറിയ ഗ്രാമം\n\nപുഴയുടെ അരികിലായിരുന്നു രാമുവിന്റെ വീട്. എല്ലാ ദിവസവും രാവിലെ അവൻ പുഴക്കരയിലേക്ക് പോകും. അവിടെ കിളികൾ പാടുന്നത് കേൾക്കാൻ അവന് വലിയ ഇഷ്ടമായിരുന്നു.\n\nഒരു ദിവസം അവൻ ഒരു പഴയ പുസ്തകം കണ്ടെത്തി.",
+  en:"A Small Village\n\nRamu's house stood beside the river. Every morning he walked down to the water. He loved to listen to the birds singing there.\n\nOne day, he found an old book."};
 const sampleFor=lang=>lang==="en"?sampleEn(accentLabel(currentAccent())):LANGS[lang].sample;
 function saveVS(){try{localStorage.setItem(VS_KEY,JSON.stringify(VS))}catch(e){}}
 
@@ -2411,7 +2419,7 @@ const CAL={ml:10,en:14};
 try{const c=JSON.parse(localStorage.getItem("pvr-cal")||"{}");if(c.ml>3&&c.en>3)Object.assign(CAL,c)}catch(e){}
 let calT;function saveCal(){clearTimeout(calT);calT=setTimeout(()=>{try{localStorage.setItem("pvr-cal",JSON.stringify(CAL))}catch(e){}},2000)}
 const estPart=x=>x.text.length/(CAL[x.lang]||12)/Math.max(.5,VS.rate)+.15;
-const estChunk=c=>c.parts.reduce((a,x)=>a+estPart(x),0)+(c.parts.length?(c.paraEnd?.38:.04):0);
+const estChunk=c=>c.parts.reduce((a,x)=>a+estPart(x)/(VS.natural?NAT.pace:1),0)+(c.parts.length?(VS.natural?pauseAfter(c)/1000:(c.paraEnd?.38:.04)):0);
 function calibrate(part,secs){if(secs<.8||part.text.length<15)return;const cps=part.text.length/((secs-.1)*VS.rate);if(cps<3||cps>40)return;CAL[part.lang]=(CAL[part.lang]||12)*.8+cps*.2;saveCal()}
 function cumTimes(ch){const c=[0];for(const x of ch)c.push(c[c.length-1]+estChunk(x));return c}
 function fmtTime(s){s=Math.max(0,Math.round(s));const m=Math.floor(s/60);return`${m}:${String(s%60).padStart(2,"0")}`}
@@ -2533,10 +2541,11 @@ function speakFrom(ci){
       if(!v){if(!list.length&&!cur){stopReading(missingVoiceMsg(it.part.lang),"bad");return}continue}
       const cap=(v.localService===false&&/google/i.test(v.name))?160:400; // Chrome's online Google voices cut off long requests
       const t=it.part.text;
-      if(cur&&cur.v===v&&cur.text.length+2+t.length<=cap){
+      if(cur&&cur.v===v&&cur.text.length+2+t.length<=cap&&!(VS.natural&&cur.paraBreak)){
         const sep=/[.!?।:;,]["'’”)]*$/.test(cur.text)?" ":". ";
         const start=cur.text.length+sep.length;cur.text+=sep+t;cur.segs.push({it,start});
       }else{cur={v,text:t,segs:[{it,start:0}]};list.push(cur)}
+      cur.paraBreak=it.j===it.ch.parts.length-1&&pauseAfter(it.ch)>=NAT.para;
     }
     if(!list.length)return;
     R.lastSpoken=Date.now();
@@ -2549,7 +2558,7 @@ function speakFrom(ci){
     list.forEach((grp,k)=>{
       const v=grp.v;
       const u=new SpeechSynthesisUtterance(grp.text);
-      u.voice=v;u.lang=vLang(v);u.rate=VS.rate;u.pitch=pitchFor(grp.segs[0].it.part.lang);u.volume=VS.volume;
+      u.voice=v;u.lang=vLang(v);u.rate=speakRate();u.pitch=pitchFor(grp.segs[0].it.part.lang);u.volume=VS.volume;
       u.onstart=()=>{if(g!==R.gen)return;R.grp=grp;grp.t0=Date.now();grp.cur=-1;R.utt=u;R.uttStart=R.lastSpoken=Date.now();R.restarts=0;
         R.uttMax=8000+grp.text.length*160/Math.max(.5,VS.rate);setSeg(grp,0)};
       u.onboundary=e=>{if(g!==R.gen||R.grp!==grp)return;grp.bound=true;R.lastSpoken=Date.now();
@@ -2848,6 +2857,12 @@ function renderVoiceSettings(){
     <div class="presets" aria-label="Speed presets">${presets}</div>
     <div class="slider"><label for="vsRate">Fine tune</label><input type="range" id="vsRate" min="0.5" max="2" step="0.05" value="${VS.rate}"><output id="oRate">${VS.rate.toFixed(2)}×</output></div>
   </div>
+  <div class="vs"><h3>Reading style</h3>
+    ${[["1","Natural","Pauses like a person reading aloud: a short breath after each sentence, a longer one at the end of a paragraph and after headings, at a slightly calmer pace."],
+       ["0","Continuous","No extra pauses between sentences."]]
+      .map(([v,l,s])=>`<label class="radio"><input type="radio" name="vsNatural" value="${v}"${(VS.natural?"1":"0")===v?" checked":""}><span><b>${l}</b><small>${s}</small></span></label>`).join("")}
+    <div><button class="btn sm" data-natsample>▶ Hear a paragraph</button></div>
+  </div>
   ${rest.length?`<details class="vs vsx" data-fold="More languages"${VSOPEN.has("More languages")?" open":""}><summary>More languages: ${rest.map(langName).join(", ")}</summary><div class="vsx-body">${rest.map(l=>langSection(l,true)).join("")}</div></details>`:""}
   <div id="vsEngineSlot"></div>
   <details class="vs vsx" data-fold="Reading mode"${VSOPEN.has("Reading mode")?" open":""}><summary>Reading mode</summary><div class="vsx-body">
@@ -2911,6 +2926,7 @@ document.addEventListener("keydown",e=>{if(e.key==="Escape"&&!$("sheet").hidden)
 $("vsBody").addEventListener("change",e=>{
   const t=e.target;
   if(t.name==="vsMode"){VS.mode=t.value;if(R.on||R.paused)stopReading("Reading mode changed. Tap Read aloud to start again.")}
+  else if(t.name==="vsNatural"){VS.natural=t.value==="1";saveVS();if(R.on){const ci=R.ci;speakFrom(ci)}toast(VS.natural?"Natural reading: pauses like a person reading":"Continuous reading")}
   else if(t.dataset.vsl)setVoicePref(t.dataset.vsl,t.value);
   else if(t.id==="vsAcc"){VS.accent=t.value;VS.enVoice="";renderVoiceSettings()}
   else if(t.id==="vsEn")VS.enVoice=t.value;
@@ -2929,7 +2945,8 @@ $("vsBody").addEventListener("input",e=>{
 });
 $("vsBody").addEventListener("click",e=>{
   const b=e.target.closest("button");if(!b)return;
-  if(b.dataset.test)speakSample(sampleFor(b.dataset.test),b.dataset.test);
+  if(b.dataset.natsample){const l=S.docReg&&S.docReg!=="ml"?S.docReg:"ml";readText(NAT_SAMPLE[l]||NAT_SAMPLE.ml,"Reading style sample")}
+  else if(b.dataset.test)speakSample(sampleFor(b.dataset.test),b.dataset.test);
   else if(b.dataset.rate){VS.rate=+b.dataset.rate;saveVS();renderVoiceSettings()}
   else if(b.dataset.tone){const[l,v]=b.dataset.tone.split("|");setPitch(l,+v);saveVS();b.parentNode.querySelectorAll("button").forEach(x=>x.setAttribute("aria-pressed",x===b));speakSample(sampleFor(l),l)}
   else if(b.dataset.tryall)tryAllVoices(b.dataset.tryall);
@@ -3280,14 +3297,14 @@ if(NATIVE_TTS){
     if(e.target.closest("[data-natbattery]"))NATIVE_TTS.openBatterySettings().then(()=>toast("Tap Battery, then choose Unrestricted.")).catch(()=>toast("Open Settings → Apps → PDF Voice Reader → Battery → Unrestricted.",true));
     if(e.target.closest("[data-natsettings]"))NATIVE_TTS.openTtsSettings({install:false}).catch(()=>toast("Open Android Settings and search for “Text-to-speech output”.",true));
   });
-  const itemFor=(tag,part,page)=>{const v=pickFor(part.lang);return v?{tag,text:part.text,lang:vLang(v),voice:v.name,engine:v.engine||"",rate:VS.rate,pitch:pitchFor(part.lang),page}:null};
+  const itemFor=(tag,part,page,ch,j)=>{const v=pickFor(part.lang);return v?{tag,text:part.text,lang:vLang(v),voice:v.name,engine:v.engine||"",rate:speakRate(),pitch:pitchFor(part.lang),page,pause:ch&&j===ch.parts.length-1?pauseAfter(ch):0}:null};
   /* pages finished by OCR while reading go straight onto Android's queue, so reading carries on even when the app is minimised */
   nativeAppend=function(){
     if(!R.on||R.custom||!VS.cont||N.gen!==R.gen||!S.pages||N.lastPage>=S.pages.length)return;
     const g=N.gen,items=[];
     for(let p=N.lastPage+1;p<=S.pages.length&&items.length<20000;p++){
       const b=buildChunks(p);if(b.needOcr)break;
-      b.chunks.forEach((c,i)=>c.parts.forEach((part,j)=>{const tag=`${g}|${p}|${i}|${j}`;const it=itemFor(tag,part,p);if(it){items.push(it);N.map.set(tag,{page:p,i,j,chunks:b.chunks})}}));
+      b.chunks.forEach((c,i)=>c.parts.forEach((part,j)=>{const tag=`${g}|${p}|${i}|${j}`;const it=itemFor(tag,part,p,c,j);if(it){items.push(it);N.map.set(tag,{page:p,i,j,chunks:b.chunks})}}));
       N.lastPage=p;
     }
     if(items.length)NATIVE_TTS.speak({items,append:true}).catch(()=>{});
@@ -3296,7 +3313,7 @@ if(NATIVE_TTS){
     const g=++R.gen;R.utt=null;
     R.ci=Math.max(0,Math.min(ci,R.chunks.length));R.pi=0;
     const items=[];N.map=new Map();N.gen=g;
-    const add=(page,chunks,from)=>{for(let i=from;i<chunks.length;i++)chunks[i].parts.forEach((part,j)=>{const tag=`${g}|${page}|${i}|${j}`;const it=itemFor(tag,part,page);if(it){items.push(it);N.map.set(tag,{page,i,j,chunks})}})};
+    const add=(page,chunks,from)=>{for(let i=from;i<chunks.length;i++)chunks[i].parts.forEach((part,j)=>{const tag=`${g}|${page}|${i}|${j}`;const it=itemFor(tag,part,page,chunks[i],j);if(it){items.push(it);N.map.set(tag,{page,i,j,chunks})}})};
     add(R.custom?0:R.page,R.chunks,R.ci);
     N.lastPage=R.page;
     if(!R.custom&&VS.cont){
@@ -3360,7 +3377,7 @@ if(NATIVE_TTS){
     if(EXP.running){toast("An audio file is already being made");return}
     const{a,b}=rangePages(),items=[],skip=[];
     for(let p=a;p<=b;p++){const bc=buildChunks(p);if(bc.needOcr||isWaiting(S.pages[p-1])){skip.push(p);continue}
-      bc.chunks.forEach((ch,i)=>ch.parts.forEach((part,j)=>{const it=itemFor(`x|${p}|${i}|${j}`,part,p);if(it)items.push(it)}))}
+      bc.chunks.forEach((ch,i)=>ch.parts.forEach((part,j)=>{const it=itemFor(`x|${p}|${i}|${j}`,part,p,ch,j);if(it)items.push(it)}))}
     if(!items.length){toast(skip.length?"These pages still need OCR. Wait for OCR to finish, then try again.":"These pages have no text to read.",true);return}
     if(R.on)pauseReading();
     EXP.running=true;EXP.a=a;EXP.b=b;

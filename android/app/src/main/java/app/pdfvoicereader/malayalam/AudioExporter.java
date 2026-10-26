@@ -116,7 +116,8 @@ public class AudioExporter {
                     skipped++;
                 } else {
                     feed(pcm);
-                    feed(gap);
+                    // the item's own pause ("Natural reading"), else a short default gap
+                    feed(it.pause > 0 ? new short[RATE * it.pause / 1000] : gap);
                 }
                 cb.progress(k + 1, items.size());
             }

@@ -37,8 +37,14 @@ public class ReaderEngine {
         final float pitch;
         final int page;
         final String engine;
+        /** silence after this sentence, in milliseconds ("Natural reading") */
+        final int pause;
 
         Item(String tag, String text, String lang, String voice, float rate, float pitch, int page, String engine) {
+            this(tag, text, lang, voice, rate, pitch, page, engine, 0);
+        }
+
+        Item(String tag, String text, String lang, String voice, float rate, float pitch, int page, String engine, int pause) {
             this.tag = tag;
             this.text = text;
             this.lang = lang;
@@ -47,6 +53,7 @@ public class ReaderEngine {
             this.pitch = pitch;
             this.page = page;
             this.engine = engine == null ? "" : engine;
+            this.pause = Math.max(0, Math.min(3000, pause));
         }
     }
 
@@ -465,6 +472,8 @@ public class ReaderEngine {
             Item it = items.get(i);
             applyVoice(e, it);
             e.tts.speak(it.text, TextToSpeech.QUEUE_ADD, new Bundle(), session + ":" + i);
+            // a breath after the sentence, like a person reading; its id has no ":" so progress ignores it
+            if (it.pause > 0) e.tts.playSilentUtterance(it.pause, TextToSpeech.QUEUE_ADD, "gap" + session + "_" + i);
         }
         if (i > queuedUpTo) queuedUpTo = i;
     }
