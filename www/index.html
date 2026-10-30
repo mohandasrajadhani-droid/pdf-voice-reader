@@ -1160,6 +1160,66 @@ function detectLang(s){
   return c.en/t>=.85?(isGerman(s)?"de":"en"):"mixed";
 }
 const LANG_LABEL={ml:"Malayalam",kn:"Kannada",ta:"Tamil",ar:"Arabic",de:"German",en:"English",mixed:"Mixed languages",none:"No text"};
+/* ---------- old non-Unicode Malayalam fonts (ML-TT Karthika, Manorama, Revathi…) ----------
+   These fonts store Malayalam as Latin letters and symbols, so a PDF's text comes out as "hmÀjnI".
+   The maps below (from SMC's Payyans converter, GPL) turn it back into Unicode Malayalam. */
+const LEGACY_MAPS={"karthika":{"w":"ം","x":"ഃ","A":"അ","B":"ആ","C":"ഇ","Cu":"ഈ","D":"ഉ","Du":"ഊ","E":"ഋ","\\p":"ഌ","F":"എ","G":"ഏ","sF":"ഐ","H":"ഒ","Hm":"ഓ","Hu":"ഔ","I":"ക","J":"ഖ","K":"ഗ","L":"ഘ","M":"ങ","N":"ച","O":"ഛ","P":"ജ","Q":"ഝ","R":"ഞ","S":"ട","T":"ഠ","U":"ഡ","V":"ഢ","W":"ണ","X":"ത","Y":"ഥ","Z":"ദ","[":"ധ","\\":"ന","]":"പ","^":"ഫ","_":"ബ","`":"ഭ","a":"മ","b":"യ","c":"ര","d":"റ","e":"ല","f":"ള","g":"ഴ","h":"വ","i":"ശ","j":"ഷ","k":"സ","l":"ഹ","m":"ാ","n":"ി","o":"ീ","p":"ു","q":"ൂ","r":"ൃ","s":"െ","t":"േ","ss":"ൈ","sm":"ൊ","tm":"ോ","su":"ൌ","v":"്‌","u":"ൗ","¡":"ക്ക","¢":"ക്ല","£":"ക്ഷ","€":"ഗ്ഗ","¥":"ഗ്ല","Š":"ങ്ക","§":"ങ്ങ","š":"ച്ച","©":"ഞ്ച","ª":"ഞ്ഞ","«":"ട്ട","¬":"ണ്‍","­":"ണ്ട","®":"ണ്ണ","¯":"ത്ത","°":"ത്ഥ","±":"ദ്ദ","²":"ദ്ധ","³":"ന്‍","Ž":"ന്ത","µ":"ന്ദ","¶":"ന്ന","·":"ന്മ","ž":"പ്പ","¹":"പ്ല","º":"ബ്ബ","»":"ബ്ല","Œ":"മ്പ","œ":"മ്മ","Ÿ":"മ്ല","¿":"യ്യ","À":"ര്‍","Á":"റ്റ","Â":"ല്‍","Ã":"ല്ല","Ä":"ള്‍","Å":"ള്ള","Æ":"വ്വ","Ç":"ശ്ല","È":"ശ്ശ","É":"സ്ല","Ê":"സ്സ","Ë":"ഹ്ല","Ì":"സ്റ്റ","Í":"ഡ്ഡ","Î":"ക്ട","Ï":"ബ്ധ","Ð":"ബ്ദ","Ñ":"ച്ഛ","Ò":"ഹ്മ","Ó":"ഹ്ന","Ô":"ന്ധ","Õ":"ത്സ","Ö":"ജ്ജ","×":"ണ്മ","Ø":"സ്ഥ","Ù":"ന്ഥ","Ú":"ജ്ഞ","Û":"ത്ഭ","Ü":"ഗ്മ","Ý":"ശ്ച","Þ":"ണ്ഡ","ß":"ത്മ","à":"ക്ത","á":"ഗ്ന","â":"ന്റ","ã":"ഷ്ട","ä":"റ്റ","å":"ന്","ó":"ന്ന","y":"്യ","z":"്വ","{":"്ര","ð":"ല്‍","ï":"ണ്ട","ñ":"ല്ല","ò":"ന്മ","´":"ന്ത","¸":"പ്പ","¨":"ച്ച","¦":"ങ്ക","¼":"മ്പ","½":"മ്മ","¤":"ഗ്ഗ","ô":"ഞ്ച","þ":"-","∂":"ന്ന"},"revathi":{"A":"അ","B":"ആ","C":"ഇ","D":"ഉ","E":"ഋ","F":"എ","G":"ഏ","H":"ഒ","I":"ക","J":"ഖ","K":"ഗ","L":"ഘ","M":"ങ","N":"ച","O":"ഛ","P":"ജ","Q":"ഝ","R":"ഞ","S":"ട","T":"ഠ","U":"ഡ","V":"ഢ","W":"ണ","X":"ത","Y":"ഥ","Z":"ദ","[":"ധ","\\":"ന","]":"പ","^":"ഫ","_":"ബ","`":"ഭ","a":"മ","b":"യ","c":"ര","d":"റ","e":"ല","f":"ള","g":"ഴ","h":"വ","i":"ശ","j":"ഷ","k":"സ","l":"ഹ","m":"ാ","n":"ി","o":"ീ","p":"ു","q":"ൂ","r":"ൃ","s":"െ","t":"േ","u":"ൗ","v":"്","w":"ം","x":"ഃ","y":"്യ","z":"്വ","{":"്ര","‚":"ന്റ","ƒ":"ള്‍","„":"ഷ്ട","…":"സ്ല","‡":"ക്ത","‰":"റ്റ","‹":"ഗ്മ","Œ":"ക്ട","™":"ഞ്ഞ","›":"ശ്ച","œ":"ബ്ധ","Ÿ":"ന്ഥ","¡":"ററ","¢":"ക്ല","£":"ക്ഷ","¤":"ത്ഭ","¥":"ന്ത","§":"ഗ്ഗ","¨":"ണ്‍","©":"ഞ്ച","ª":"ബ്ല","«":"ശ്ല","®":"ച്ച","°":"ക്ക","±":"ദ്ദ","´":"ട്ട","µ":"ന്ദ","·":"ഗ്ന","º":"മ്പ","»":"ശ്ശ","¿":"ര്‍","À":"ഹ്ല","Â":"നു","Ã":"സ്റ്റ","Æ":"ണ്ണ","Õ":"ഡ്ഡ","Ø":"ത്ത","ß":"ങ്ങ","æ":"മ്ല","÷":"ജ്ജ","ø":"യ്യ","ÿ":"സ്ഥ","ss":"ൈ","sm":"ൊ","tm":"ോ","su":"ൌ","’":"ത്സ","∂":"ന്ന","¬":"ല്‍","¶":"ങ്ക","Ω":"മ്മ","Δ":"വ്വ","π":"പ്ല","∏":"പ്പ","∑":"ന്മ","∕":"ജ്ഞ","√":"ല്ല","∞":"ത്ഥ","∫":"ബ്ബ","≈":"ള്ള","≠":"ണ്ട","≤":"ദ്ധ","≥":"ന്‍","–":"ബ്ദ","—":"ച്ഛ","‘":"ന്ധ","“":"ഹ്മ","”":"ഹ്ന","•":"ഗ്ല","Ä":"ള്‍"},"indulekha":{"w":"ം","x":"ഃ","A":"അ","B":"ആ","C":"ഇ","Cu":"ഈ","D":"ഉ","Du":"ഊ","E":"ഋ","\\p":"ഌ","F":"എ","G":"ഏ","sF":"ഐ","H":"ഒ","Hm":"ഓ","Hu":"ഔ","I":"ക","J":"ഖ","K":"ഗ","L":"ഘ","M":"ങ","N":"ച","O":"ഛ","P":"ജ","Q":"ഝ","R":"ഞ","S":"ട","T":"ഠ","U":"ഡ","V":"ഢ","W":"ണ","X":"ത","Y":"ഥ","Z":"ദ","[":"ധ","\\":"ന","]":"പ","^":"ഫ","_":"ബ","`":"ഭ","õ":"ഭ","a":"മ","b":"യ","c":"ര","d":"ല","e":"വ","f":"ശ","g":"ഷ","h":"സ","i":"ഹ","j":"ള","k":"ഴ","l":"റ","m":"്","n":"ാ","o":"ി","p":"ീ","q":"ു","r":"ൂ","s":"ൃ","t":"െ","u":"േ","ss":"ൈ","sm":"ൊ","tm":"ോ","su":"ൌ","v":"ൌ","¡":"ക്ക","¢":"ക്ല","£":"ക്ഷ","€":"ഗ്ഗ","¥":"ദ്ദ","Š":"ങ്ക","§":"ങ്ങ","š":"ച്ച","©":"ഞ്ച","ª":"ദ്ധ","«":"ട്ട","¬":"ണ്‍","­":"ണ്ട","®":"ണ്ണ","¯":"ത്ത","°":"ന്‍","±":"ര്‍","²":"ല്‍","³":"ള്‍","Ž":"ന്ത","µ":"ന്ദ","¶":"ന്ന","·":"ന്മ","ž":"പ്പ","¹":"ങ്ക","º":"ങ്ങ","»":"ച്ച","Œ":"മ്പ","œ":"മ്മ","Ÿ":"മ്ല","¿":"ത്ത","À":"ന്ദ","Á":"ന്ന","Â":"ന്റ","Ã":"പ്പ","Ä":"മ്പ","Å":"മ്മ","Æ":"വ്വ","Ç":"യ്യ","È":"ല്ല","É":"ള്ള","Ê":"റ്റ","Ë":"ഹ്ല","Ì":"റ്റ","Í":"ഡ്ഡ","Î":"ക്ട","Ï":"ബ്ധ","Ð":"ന്ത","Ñ":"ച്ഛ","Ò":"ഹ്മ","Ó":"ഹ്ന","Ô":"ന്ധ","Õ":"ഞ്ച","Ö":"ജ്ജ","×":"ണ്മ","Ø":"സ്ഥ","Ù":"സ്ഥ","Ú":"ജ്ഞ","Û":"ത്ഭ","Ü":"ഗ്മ","Ý":"ശ്ച","Þ":"ണ്ഡ","ß":"ത്മ","à":"ക്ത","á":"ഗ്ന","â":"ന്റ","ã":"ഷ്ട","ä":"റ്റ","å":"ന്","ó":"ന്ന","y":"്യ","z":"്വ","{":"്ര","}":"്ര","ð":"ല്‍","ï":"ണ്ട","ñ":"ല്ല","ò":"ന്മ","´":"ന്ത","¸":"ക്ഷ","¨":"ഓ","¦":"ങ്ക","|":"്വ","¼":"ഞ്ഞ","½":"ട്ട","¤":"ഈ","ô":"സ്സ","þ":"-","¾":"ണ്ട","î":"ന്മ","$":"സ്റ്റ"},"ambili":{"w":"ം","x":"ഃ","A":"അ","B":"ആ","C":"ഇ","Cu":"ഈ","D":"ഉ","Du":"ഊ","E":"ഋ","\\p":"ഌ","F":"എ","G":"ഏ","sF":"ഐ","H":"ഒ","Hm":"ഓ","Hu":"ഔ","I":"ക","J":"ഖ","K":"ഗ","L":"ഘ","M":"ങ","N":"ച","O":"ഛ","P":"ജ","Q":"ഝ","R":"ഞ","S":"ട","T":"ഠ","U":"ഡ","V":"ഢ","W":"ണ","X":"ത","Y":"ഥ","Z":"ദ","[":"ധ","\\":"ന","]":"പ","^":"ഫ","_":"ബ","`":"ഭ","a":"മ","b":"യ","c":"ര","d":"റ","e":"ല","f":"ള","g":"ഴ","h":"വ","i":"ശ","j":"ഷ","k":"സ","l":"ഹ","m":"ാ","n":"ി","o":"ീ","p":"ു","q":"ൂ","r":"ൃ","s":"െ","t":"േ","ss":"ൈ","sm":"ൊ","tm":"ോ","su":"ൌ","v":"്‌","u":"ൗ","¡":"ത്ഥ","¢":"ക്ല","£":"ക്ഷ","€":"ഗ്ഗ","¥":"ന്ത","Š":"ങ്ക","§":"ങ്ങ","š":"ണ്‍","©":"ഞ്ച","ª":"ഞ്ഞ","«":"ട്ട","¬":"ല്‍","­":"ണ്ട","®":"ച്ച","¯":"സ്ഥ","°":"ക്ക","±":"ദ്ദ","²":"ദ്ധ","³":"ന്‍","Ž":"ന്ത","µ":"ന്ദ","¶":"ങ്ക","·":"ന്മ","ž":"പ്പ","¹":"പ്ലശ്ശ","º":"മ്പ","»":"ശ്ശ","Œ":"മ്പ","œ":"മ്മ","Ÿ":"മ്ല","¿":"ര്‍","À":"ഹ്ല","Á":"റ്റ","Â":"ണ്ണ","Ã":"സ്റ്റ","Ä":"ള്‍","Å":"ള്ള","Æ":"ണ്ണ","Ç":"ശ്ല","È":"ശ്ശ","É":"സ്ല","Ê":"സ്സ","Ë":"ഹ്ല","Ì":"സ്റ്റ","Í":"ഡ്ഡ","Î":"ക്ട","Ï":"ബ്ധ","Ð":"ബ്ദ","Ñ":"ച്ഛ","Ò":"ഹ്മ","Ó":"ഹ്ന","Ô":"ന്ധ","Õ":"ത്സ","Ö":"ജ്ജ","×":"ണ്മ","Ø":"ത്ത","Ù":"ന്ഥ","Ú":"ജ്ഞ","Û":"ത്ഭ","Ü":"ഗ്മ","Ý":"ശ്ച","Þ":"ണ്ഡ","ß":"ങ്ങ","à":"ക്ത","á":"ഗ്ന","â":"ന്റ","ã":"ഷ്ട","ä":"റ്റ","å":"ന്","ó":"ന്ന","y":"്യ","z":"്വ","{":"്ര","ð":"ല്‍","ï":"ണ്ട","ñ":"ല്ല","ò":"ന്മ","´":"ട്ട","¸":"പ്പ","¨":"ണ്‍","¦":"ങ്ക","¼":"മ്പ","½":"മ്മ","¤":"ഗ്ഗ","ô":"ഞ്ച","þ":"-","∂":"ന്ന","≤":"ദ്ധ","≥":"ന്‍","ƒ":"ള്‍","˛":"-","Ω":"മ്മ","‰":"റ്റ","ÿ":"സ്ഥ","›":"ശ്ച","∞":"ത്ഥ","≠":"ണ്ട","‡":"ക്ത","√":"ല്ല","∏":"പ്പ","≈":"ള്ള","π":"പ്ല","ø":"യ്യ","ﬂ":"ത്മ","∑":"ന്മ","÷":"ജ്ജ","∆":"വ്വ","™":"ഞ്ഞ","—":"ച്ഛ","‚":"ന്റ","⁄":"ജ്ഞ","•":"ഗ്ല","’":"ത്സ","‘":"ന്ധ","...":"സ്ല","“":"ഹ്മ"},"uma":{"w":"ം","x":"ഃ","A":"അ","B":"ആ","C":"ഇ","Cu":"ഈ","D":"ഉ","Du":"ഊ","E":"ഋ","\\p":"ഌ","F":"എ","G":"ഏ","sF":"ഐ","H":"ഒ","Hm":"ഓ","Hu":"ഔ","I":"ക","J":"ഖ","K":"ഗ","L":"ഘ","M":"ങ","N":"ച","O":"ഛ","P":"ജ","Q":"ഝ","R":"ഞ","S":"ട","T":"ഠ","U":"ഡ","V":"ഢ","W":"ണ","X":"ത","Y":"ഥ","Z":"ദ","[":"ധ","\\":"ന","]":"പ","^":"ഫ","_":"ബ","`":"ഭ","a":"മ","b":"യ","c":"ര","d":"റ","e":"ല","f":"ള","g":"ഴ","h":"വ","i":"ശ","j":"ഷ","k":"സ","l":"ഹ","m":"ാ","n":"ി","o":"ീ","p":"ു","q":"ൂ","r":"ൃ","s":"െ","t":"േ","ss":"ൈ","sm":"ൊ","tm":"ോ","su":"ൌ","v":"്‌","u":"ൗ","¡":"ക്ക","¢":"ക്ല","£":"ക്ഷ","€":"ഗ്ഗ","¥":"ഗ്ല","Š":"ങ്ക","§":"ങ്ങ","š":"ച്ച","©":"ഞ്ച","ª":"ഞ്ഞ","«":"ട്ട","¬":"ണ്‍","­":"ണ്ട","®":"ണ്ണ","¯":"ത്ത","°":"ത്ഥ","±":"ദ്ദ","²":"ദ്ധ","³":"ന്‍","Ž":"ന്ത","µ":"ന്ദ","¶":"ന്ന","·":"ന്മ","ž":"പ്പ","¹":"പ്ല","º":"ബ്ബ","»":"ബ്ല","Œ":"മ്പ","œ":"മ്മ","Ÿ":"മ്ല","¿":"യ്യ","À":"ര്‍","Á":"റ്റ","Â":"ല്‍","Ã":"ല്ല","Ä":"ള്‍","Å":"ള്ള","Æ":"വ്വ","Ç":"ശ്ല","È":"ശ്ശ","É":"സ്ല","Ê":"സ്സ","Ë":"ഹ്ല","Ì":"സ്റ്റ","Í":"ഡ്ഡ","Î":"ക്ട","Ï":"ബ്ധ","Ð":"ബ്ദ","Ñ":"ച്ഛ","Ò":"ഹ്മ","Ó":"ഹ്ന","Ô":"ന്ധ","Õ":"ത്സ","Ö":"ജ്ജ","×":"ണ്മ","Ø":"സ്ഥ","Ù":"ന്ഥ","Ú":"ജ്ഞ","Û":"ത്ഭ","Ü":"ഗ്മ","Ý":"ശ്ച","Þ":"ണ്ഡ","ß":"ത്മ","à":"ക്ത","á":"ഗ്ന","â":"ന്റ","ã":"ഷ്ട","ä":"റ്റ","å":"ന്","ó":"ന്ന","y":"്യ","z":"്വ","{":"്ര","ð":"ല്‍","ï":"ണ്ട","ñ":"ല്ല","ò":"ന്മ","´":"ന്ത","¸":"പ്പ","¨":"ച്ച","¦":"ങ്ക","¼":"മ്പ","½":"മ്മ","¤":"ഗ്ഗ","ô":"ഞ്ച","þ":"-","∂":"ന്ന"},"shree":{"1":"१","2":"२","3":"३","4":"४","5":"५","6":"६","7":"७","8":"८","9":"९","0":"०","_":"म","`":"य","m":"ा","A":"अ","Am":"आ","B":"इ","C":"उ","D":"ऊ","D$":"ऊ","E":"ए","F":"ऋ","G":"ॠ","H":"क","H$":"क","I":"ख","J":"ग","K":"घ","L":"ङ","M":"च","N":"छ","O":"ज","P":"झ","Q":"ट","R":"ठ","S":"ड","T":"ढ","U":"ण","V":"त","W":"थ","X":"द","Y":"ध","Z":"न","a":"र","b":"ल","c":"ल","d":"व","e":"श","f":"ष","g":"स","h":"ह","i":"ळ","j":"क्ष","k":"ज्ञ","l":"श्र","mo":"ो","n":"प","o":"े","o$":"े","p":"ि","q":"िं","qh":"हिं","r":"ी","mr":"ी","s":"ी","ms":"ी","t":"ीं","u":"ीर्","w":"ु","y":"ू","~":"ब","\\":"फ","]":"ोर्ं","^":"भ","@":"ड","§":"ं","rm§":"रां","{":"ि","[":"ि","}":"ोर्","|":"ें","m|":"ॊ","°":"ॉ","m°":"ो","":"क्","":"ल्ल","ø":"ह्य","¡":"ै","m¡¡":"ौ","©":"र्","U©":"र्ण","`m©":"र्या","¸":"क्क","¹":"व्क","º":"त्क","»":"ख्","¼":"ख्र","½":"ग्","¾":"ग्र","¿":"छ्","À":"च्","Á":"ज्","Â":"झ्","Ã":"झ्र","Ä":"ञ्","Å":"ट्ट","Æ":"ट्ठ","Ç":"ठ्ठ","È":"ड्ड","É":"ढ्ढ","Ê":"ण्","Ë":"त्","Ì":"त्र","Í":"त्र्","Î":"त्त","Ï":"थ्","Ð":"द्र","Ñ":"दृ","Ò":"द्ग","Ó":"द्घ","Ô":"द्द","Õ":"द्ध","Ö":"द्न","×":"द्ब","Ø":"द्भ","Ù":"द्म","Ú":"द्य","Û":"द्व","Ü":"ध्","Ý":"न्","þ":"ु","ß":"प्","à":"प्र","á":"प्त","â":"फ्","ã":"ब्","ä":"भ्","å":"म्","æ":"य्","ç":"्य","è":"न्","é":"रु","ê":"रू","ë":"ल्","ì":"व्","í":"श्","î":"ष्","ï":"ष्ट","ñ":"स्","ð":"ष्ठ","ò":"स्र","ó":"स्त्र","ô":"ह्","õ":"ह्र","ö":"ह्व","÷":"ह्म","ù":"ळ्","ú":"क्ष्","û":"श्र्","ü":"श्र्च","ý":"श्र्न","ÿ":"ू","Œ":"्र","œ":"श्र्व","Š":"क्","ƒ":"च्च","ˆ":"ह्व","˜":"ख़","–":"ड्ढ","‘":"ङ्क","—":"्र","’":"ङ्ख","‚":"ज्ज","“":"ङ्ग","mª":"्र","±":"ॉ","«":"्र","´":"ट्र","¥":"ृ","Am°":"ऒ","Eo":"ऐ"},"manorama":{"@":"ഥ","A":"ക്ക","B":"ങ്ങ","C":"ങ്ക","E":"ഞ്ഞ","F":"ഞ്ച","G":"ട്ട","H":"ണ്ണ","I":"ണ്ട","J":"ത്ത","K":"ന്ന","L":"ന്ത","M":"പ്പ","N":"മ്മ","O":"മ്പ","P":"ഗ്ഗ","T":"സ്സ","U":"ള്ള","V":"ര്‍","W":"ല്‍","X":"ന്‍","Y":"ണ്‍","Z":"ള്‍","`":"ഋ","a":"ന്റ","b":"്വ","c":"്യ","d":"്ര","f":"ക്ഷ","g":"ദ്ദ","i":"ദ്ധ","j":"ത്ഥ","m":"ണ്ഡ","o":"ഗ്ന","p":"ണ്മ","q":"ത്ഭ","r":"ത്സ","s":"ന്ഥ","t":"ന്ധ","u":"ഗ്മ","v":"ത്മ","w":"ന്ദ","x":"റ്റ","y":"ത്ന","z":"ന്മ","{":"ള","|":"മ്ല","~":"ഖ","¡":"്","¢":"ം","£":"ഃ","€":"ശ്ശ","¥":"അ","Š":"സ്ല","§":"ഇ","©":"ഉ","ª":"ഊ","«":"ഋ","®":"എ","¯":"ഏ","°":"ഐ","±":"ഗ്ല","²":"ഒ","³":"ഓ","µ":"ക","¶":"ഖ","·":"ഗ","¹":"ങ","º":"ച","»":"ഛ","Œ":"വ്വ","¿":"ട","À":"ഠ","Á":"ഡ","Â":"ഢ","Ã":"ണ","Ä":"ത","Å":"ഥ","Æ":"ദ","Ç":"ധ","È":"ന","É":"പ","Ë":"ഫ","Ì":"ബ","Í":"ഭ","Î":"മ","Ï":"യ","Ð":"ക്ല","Õ":"വ","Ö":"ശ","×":"ഷ","Ø":"സ","Ù":"ഹ","Ú":"റ്റ","Û":"ശ്ശ","Ü":"ല","Ý":"ഴ","Þ":"ാ","ß":"ി","à":"ീ","á":"ു","â":"ൂ","ã":"ൃ","æ":"െ","ç":"േ","è":"ൈ","ì":"ൗ","í":"്","ò":"ി","ó":"ു","ô":"ൂ","ø":"ര","ù":"റ","¦":"ആ","‚":"ച്ച","¼":"ജ","ï":"്ല","ˆ":"ല്ല"}};
+const LEGACY_FONT=[[/manorama/i,"manorama"],[/revathi/i,"revathi"],[/indulekha/i,"indulekha"],[/ambili/i,"ambili"],[/\buma\b|ML-?TT-?Uma/i,"uma"],[/shree|sree/i,"shree"],
+  [/ML[-_ ]?TT|FML[-_ ]|karthika|nandini|keerthi|panchari|matweb|mathrubhumi|ML[-_]Revathi|ML[-_](?!.*unicode)/i,"karthika"]];
+function legacyMapFor(fontName){const n=(fontName||"").replace(/^[A-Z]{6}\+/,"");for(const[re,m]of LEGACY_FONT)if(re.test(n))return m;return null}
+const PRE_SIGNS=new Set(["േ","ൈ","െ","്ര","ൊ","ോ","ൌ"]),POST_SIGNS=new Set(["്യ","്വ"]);
+const LEGACY_RULES={};
+function legacyRules(name){if(!LEGACY_RULES[name]){const m=new Map(Object.entries(LEGACY_MAPS[name]||{}));
+  if(m.get("\\p")==="\u0D0C")m.delete("\\p"); // in real ML-TT text "\p" is the start of നു, not the archaic letter ഌ
+  LEGACY_RULES[name]=m}return LEGACY_RULES[name]}
+function legacyToUnicode(s,mapName){
+  const R=legacyRules(mapName);let out="",i=0,preV="",preRa=false;
+  if(!R.has("\u00AD"))s=s.replace(/\u00AD/g,""); // in some of these fonts the soft hyphen is a letter (ണ്ട)
+  while(i<s.length){
+    let hit=false;
+    for(const n of[3,2,1]){
+      const L=s.substr(i,n);if(L.length<n||!R.has(L))continue;
+      const u=R.get(L);hit=true;i+=n;
+      if(u==="്ര")preRa=true;
+      else if(PRE_SIGNS.has(u))preV=u;            // a vowel sign written before its letter
+      else{
+        let post="";
+        if(i<s.length&&R.has(s[i])&&POST_SIGNS.has(R.get(s[i]))){post=R.get(s[i]);i++}
+        out+=u+(preRa?"്ര":"")+post+preV;preV="";preRa=false;
+      }
+      break;
+    }
+    if(!hit){out+=preV+s[i];preV="";preRa=false;i++}
+  }
+  out+=preV;
+  // vowel signs typed in two parts (േ + ാ = ോ …), old two-part chillu letters, stray joiners
+  return out.replace(/ോ/g,"ോ").replace(/ൊ/g,"ൊ").replace(/ൌ/g,"ൌ").replace(/െെ/g,"ൈ")
+    .replace(/([ണനരലളക])്‍/g,(m,c)=>({"ണ":"ൺ","ന":"ൻ","ര":"ർ","ല":"ൽ","ള":"ൾ","ക":"ൿ"})[c])
+    .replace(/\u0D4D\u200C/g,"\u0D4D").normalize("NFC");
+}
+/* Latin text that isn't real English or German: candidate old-font Malayalam */
+function looksLegacyLatin(s){
+  const t=s||"",ml=(t.match(/[ഀ-ൿ]/g)||[]).length,lat=(t.match(/[A-Za-z]/g)||[]).length;
+  if(lat<40||ml>lat*.2)return false;
+  const w=t.toLowerCase().match(/[a-zäöüß]{2,}/g)||[];if(w.length<10)return false;
+  const known=w.filter(x=>EN_W.has(x)||DE_W.has(x)).length/w.length;
+  const midCaps=(t.match(/[a-z¡-ÿ][A-Z]/g)||[]).length/Math.max(1,w.length);
+  const odd=(t.match(/[¡-ÿ{}\[\]\\^_`|¶§¯Š€]/g)||[]).length/lat;
+  return known<.08&&(midCaps>.12||odd>.03);
+}
+
+/* converts the text pieces of a page that use an old-font, using each piece's own font name */
+async function convertLegacyItems(pg,items){
+  try{await pg.getOperatorList()}catch(e){return null}
+  const fontOf={};let used=null;
+  const out=items.map(it=>{
+    if(!("str" in it)||!it.str)return it;
+    const fn=it.fontName;
+    if(!(fn in fontOf)){let nm="";try{const f=pg.commonObjs.get(fn);nm=f&&(f.name||"")||""}catch(e){}fontOf[fn]=legacyMapFor(nm)}
+    const m=fontOf[fn];if(!m)return it;used=m;return{...it,str:legacyToUnicode(it.str,m)};
+  });
+  return used?{items:out,font:used}:null;
+}
 /* which voice reads the Latin-script (A–Z) text of a page: German or English */
 function latinOf(p){const l=effLang(p);if(l==="de")return"de";if(l==="en"||REG.includes(l))return"en";return isGerman(p.text||"")?"de":"en"}
 function docLangsLabel(m){return m&&m.langs&&m.langs.length?m.langs.map(langName).join(" + "):(LANG_LABEL[m&&m.lang]||"")}
@@ -1207,6 +1267,7 @@ function analysePage(raw){
   const visible=rep.text.replace(/\s/g,"").length;
   let kind="text", reason="";
   if(visible<8){kind="scan";reason="No text layer. This page is a scanned image or blank."}
+  else if(looksLegacyLatin(rep.text)){kind="legacy";reason="Text uses an old non-Unicode Malayalam font, so the letters come out as English-looking symbols."}
   else if(c.l1>20&&c.l1/(visible)>.08&&c.reg<5){kind="legacy";reason="Text uses an old non-Unicode Malayalam font, so the letters come out as symbols."}
   else if(ra.fixed){kind="damaged";reason="This PDF stores Arabic letters in display order, so its text comes out jumbled."}
   else if(rep.damaged>=3||(c.reg>0&&rep.damaged/(c.reg+1)>.02)){kind="damaged";reason=`${rep.damaged} letter${rep.damaged>1?"s":""} could not be decoded (shown as □).`}
@@ -1618,7 +1679,11 @@ async function openBuffer(buf,info){
       if(S.cancel){ov.hidden=true;pdf.destroy();toast("Cancelled");return}
       setProg((i-1)/pdf.numPages,`Extracting page ${i} of ${pdf.numPages}`);
       if(pdf.isVirtual){pages.push(analysePage(pdf.textOf(i)));continue}
-      try{const pg=await pdf.getPage(i);const tc=await pg.getTextContent();pages.push(analysePage(buildText(tc.items)));pg.cleanup()}
+      try{
+        const pg=await pdf.getPage(i);const tc=await pg.getTextContent();let items=tc.items,legacy=null;
+        // old non-Unicode Malayalam fonts: convert to real Malayalam text instead of reading the garbled letters
+        if(looksLegacyLatin(items.map(x=>x.str||"").join(" "))){const r=await convertLegacyItems(pg,items);if(r){items=r.items;legacy=r.font}}
+        const ap=analysePage(buildText(items));if(legacy)ap.legacyFont=legacy;pages.push(ap);pg.cleanup()}
       catch(e){pages.push({...analysePage(""),kind:"scan",reason:"This page could not be read. It may be damaged."})}
       if(i%4===0) await new Promise(r=>setTimeout(r,0));
     }
@@ -1728,6 +1793,7 @@ function showText(){
     if(p.kind==="scan"&&!p.ocr) n.push(`<div class="note warn">${p.reason} Tap the OCR button to read its words from the image.</div>`);
     else if(p.kind==="legacy"&&!p.ocr) n.push(`<div class="note bad">${p.reason} Tap the OCR button to read the page from its image instead.</div>`);
     else if(p.kind==="damaged"&&!p.ocr) n.push(`<div class="note warn">${p.reason} This PDF's font hides some joined letters. Tap the OCR button to re-read the page from its image, or correct them below.</div>`);
+    if(p.legacyFont) n.push(`<div class="note ok">This page uses an old non-Unicode Malayalam font (${p.legacyFont[0].toUpperCase()+p.legacyFont.slice(1)} style). Its text was converted to Unicode Malayalam.</div>`);
     if(p.visualOrder) n.push(`<div class="note ok">Vowel signs like േ and െ were stored in display order in this PDF. They have been moved back after their letters (${p.fixes} fixes).</div>`);
     else if(p.fixes) n.push(`<div class="note ok">Removed ${p.fixes} stray space${p.fixes>1?"s":""} inside Malayalam words.</div>`);
   }
@@ -2075,6 +2141,8 @@ function ocrLangFor(p){
   // a page whose PDF text shows one language is read with that language's model; otherwise the book's languages
   // a page with broken letters may hide another script, so a "Latin-only" reading of it can't be trusted
   if(p.kind==="damaged"&&(l==="de"||l==="en"))return doc.join("+");
+  // an old-font page is Malayalam, whatever its garbled letters look like
+  if(p.kind==="legacy")return doc.includes("mal")||!doc.length?"mal"+(doc.includes("eng")?"+eng":""):doc.join("+");
   if(LANGS[l])return LANGS[l].tess;
   if(l==="en"&&doc.includes("eng"))return"eng";
   return doc.join("+");
