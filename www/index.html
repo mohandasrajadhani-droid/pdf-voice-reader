@@ -137,6 +137,9 @@ body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset
 .mixbar{display:flex;height:10px;border-radius:5px;overflow:hidden;background:var(--surface-2)}
 .mixbar i{display:block;height:100%}
 .mix-ml{background:var(--green)}.mix-kn{background:#C2577A}.mix-ta{background:#8C6BC8}.mix-ar{background:#2E9E9E}.mix-de{background:#7A8B3C}.mix-en{background:#5B87C9}.mix-mx{background:#C9A04B}.mix-no{background:var(--line)}
+.wchk{display:grid;gap:4px;max-height:300px;overflow:auto}
+.wrow{display:flex;gap:6px;align-items:center;border:1px solid var(--line);border-radius:8px;padding:4px 6px}
+.ww{flex:1;min-width:0;font-family:var(--f-text);overflow-wrap:anywhere}.ww small{display:block;color:var(--muted);font-family:var(--f-body);font-size:.78rem}
 .lchips{display:flex;flex-wrap:wrap;gap:6px}.lchips button{min-height:40px;border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:999px;padding:0 14px;font:inherit;font-weight:700;cursor:pointer}.lchips button[aria-pressed="true"]{background:var(--green);color:var(--green-ink);border-color:var(--green)}
 .home-langs{display:grid;gap:6px;margin-top:4px}
 .mixkey{display:flex;flex-wrap:wrap;gap:4px 12px;font-size:.8rem;color:var(--muted)}
@@ -2366,10 +2369,13 @@ try{const s=JSON.parse(localStorage.getItem(VS_KEY)||"{}");if(s&&typeof s==="obj
 const TONES=[["Deep",.8],["Lower",.9],["Normal",1],["Higher",1.1]];
 /* "Natural reading": pause like a person reading aloud — briefly after a sentence, longer at the end of a
    paragraph and after a heading — and read at a slightly calmer pace */
-const NAT={sent:300,para:750,head:950,pace:.93};
+const STYLES={natural:{sent:300,para:750,head:950,pace:.93},story:{sent:520,para:1150,head:1450,pace:.86},continuous:{sent:0,para:0,head:0,pace:1}};
+const curStyle=()=>VS.natural===false?"continuous":(STYLES[VS.style]?VS.style:"natural");
+const NATS=()=>STYLES[curStyle()];
+const NAT=STYLES.natural;
 function isHeading(ch){const d=(ch.display||"").trim();return ch.paraEnd&&d.length>0&&d.length<70&&!/[.!?।؟:;,"”’)\]]$/.test(d)}
-function pauseAfter(ch){if(!VS.natural||!ch)return 0;return isHeading(ch)?NAT.head:ch.paraEnd?NAT.para:NAT.sent}
-const speakRate=()=>VS.rate*(VS.natural?NAT.pace:1);
+function pauseAfter(ch){const s=NATS();if(!s.sent||!ch)return 0;return isHeading(ch)?s.head:ch.paraEnd?s.para:s.sent}
+const speakRate=()=>VS.rate*NATS().pace;
 function pitchFor(lang){const p=lang==="ml"?VS.pitchMl:lang==="en"?VS.pitchEn:(VS.pitches||{})[lang];return typeof p==="number"?p:1}
 function setPitch(lang,v){if(lang==="ml")VS.pitchMl=v;else if(lang==="en")VS.pitchEn=v;else{VS.pitches=VS.pitches||{};VS.pitches[lang]=v}}
 function voicePref(lang){return lang==="ml"?VS.mlVoice:lang==="en"?VS.enVoice:(VS.voices||{})[lang]||""}
@@ -2487,7 +2493,7 @@ const CAL={ml:10,en:14};
 try{const c=JSON.parse(localStorage.getItem("pvr-cal")||"{}");if(c.ml>3&&c.en>3)Object.assign(CAL,c)}catch(e){}
 let calT;function saveCal(){clearTimeout(calT);calT=setTimeout(()=>{try{localStorage.setItem("pvr-cal",JSON.stringify(CAL))}catch(e){}},2000)}
 const estPart=x=>x.text.length/(CAL[x.lang]||12)/Math.max(.5,VS.rate)+.15;
-const estChunk=c=>c.parts.reduce((a,x)=>a+estPart(x)/(VS.natural?NAT.pace:1),0)+(c.parts.length?(VS.natural?pauseAfter(c)/1000:(c.paraEnd?.38:.04)):0);
+const estChunk=c=>c.parts.reduce((a,x)=>a+estPart(x)/NATS().pace,0)+(c.parts.length?(NATS().sent?pauseAfter(c)/1000:(c.paraEnd?.38:.04)):0);
 function calibrate(part,secs){if(secs<.8||part.text.length<15)return;const cps=part.text.length/((secs-.1)*VS.rate);if(cps<3||cps>40)return;CAL[part.lang]=(CAL[part.lang]||12)*.8+cps*.2;saveCal()}
 function cumTimes(ch){const c=[0];for(const x of ch)c.push(c[c.length-1]+estChunk(x));return c}
 function fmtTime(s){s=Math.max(0,Math.round(s));const m=Math.floor(s/60);return`${m}:${String(s%60).padStart(2,"0")}`}
@@ -2609,11 +2615,11 @@ function speakFrom(ci){
       if(!v){if(!list.length&&!cur){stopReading(missingVoiceMsg(it.part.lang),"bad");return}continue}
       const cap=(v.localService===false&&/google/i.test(v.name))?160:400; // Chrome's online Google voices cut off long requests
       const t=it.part.text;
-      if(cur&&cur.v===v&&cur.text.length+2+t.length<=cap&&!(VS.natural&&cur.paraBreak)){
+      if(cur&&cur.v===v&&cur.text.length+2+t.length<=cap&&!(NATS().sent&&cur.paraBreak)){
         const sep=/[.!?।:;,]["'’”)]*$/.test(cur.text)?" ":". ";
         const start=cur.text.length+sep.length;cur.text+=sep+t;cur.segs.push({it,start});
       }else{cur={v,text:t,segs:[{it,start:0}]};list.push(cur)}
-      cur.paraBreak=it.j===it.ch.parts.length-1&&pauseAfter(it.ch)>=NAT.para;
+      cur.paraBreak=it.j===it.ch.parts.length-1&&pauseAfter(it.ch)>=NATS().para;
     }
     if(!list.length)return;
     R.lastSpoken=Date.now();
@@ -2902,7 +2908,25 @@ function toneRow(lang){
   return `<div class="tone"><span class="muted">Tone</span><div class="presets" role="group" aria-label="${langName(lang)} voice tone">${TONES.map(([l,v])=>`<button data-tone="${lang}|${v}" aria-pressed="${Math.abs(cur-v)<.01}">${l}</button>`).join("")}</div></div>`;
 }
 function voiceOpts(list,sel){return list.map((v,i)=>{const lab=voiceLabel(v);return`<option value="${esc(voiceKey(v))}"${sel&&voiceKey(v)===voiceKey(sel)?" selected":""}>${NATIVE_TTS?"":`${i+1}. `}${esc(lab)}</option>`}).join("")}
+/* names, abbreviations and OCR-uncertain words worth a listen: listed for you to check, never guessed */
+let WCHK=[];
+const WCHK_SKIP=new Set("please page chapter part section the this that these those there then what when where which who why how mr mrs ms dr st no and but".split(" "));
+function wordsToCheck(){
+  if(!S.pages||!S.meta)return[];
+  const ok=new Set(S.meta.okWords||[]),have=new Set(VS.dict.map(d=>(d.from||"").trim().toLowerCase()));
+  const cnt=new Map(),why=new Map();
+  const add=(w,r)=>{w=(w||"").replace(/^[^\p{L}]+|[^\p{L}.]+$/gu,"").replace(/\.$/,"");const k=w.toLowerCase();
+    if([...w].length<2||ok.has(k)||have.has(k)||WCHK_SKIP.has(k)||EN_W.has(k))return;cnt.set(w,(cnt.get(w)||0)+1);if(!why.has(w))why.set(w,r)};
+  for(const p of S.pages){
+    if(p.ocr&&p.ocr.uncertain&&p.source==="ocr"&&!p.edited)p.ocr.uncertain.slice(0,10).forEach(w=>add(w,"OCR unsure"));
+    const txt=p.text||"";
+    if(domReg(txt))(txt.match(/\b(?:[A-Z]{2,6}|[A-Z][a-z]{2,})\b/g)||[]).forEach(w=>add(w,/^[A-Z]+$/.test(w)?"Abbreviation":"Name in English"));
+    else (txt.match(/\b[A-Z]{2,6}\b/g)||[]).forEach(w=>add(w,"Abbreviation"));
+  }
+  return[...cnt.entries()].sort((a,b)=>b[1]-a[1]).slice(0,30).map(([w,n])=>({w,n,why:why.get(w)}));
+}
 function renderVoiceSettings(){
+  WCHK=wordsToCheck();
   const box=$("vsBody");
   if(!TTS_OK){box.innerHTML=`<div class="vs"><b>This browser can't read aloud.</b><div class="muted">Open this page in Chrome on Android, or Chrome or Edge on a computer.</div></div>`;return}
   const acc=currentAccent(),have=haveAccents(),en=enVoices(acc),enSel=pickEn();
@@ -2926,9 +2950,11 @@ function renderVoiceSettings(){
     <div class="slider"><label for="vsRate">Fine tune</label><input type="range" id="vsRate" min="0.5" max="2" step="0.05" value="${VS.rate}"><output id="oRate">${VS.rate.toFixed(2)}×</output></div>
   </div>
   <div class="vs"><h3>Reading style</h3>
-    ${[["1","Natural","Pauses like a person reading aloud: a short breath after each sentence, a longer one at the end of a paragraph and after headings, at a slightly calmer pace."],
-       ["0","Continuous","No extra pauses between sentences."]]
-      .map(([v,l,s])=>`<label class="radio"><input type="radio" name="vsNatural" value="${v}"${(VS.natural?"1":"0")===v?" checked":""}><span><b>${l}</b><small>${s}</small></span></label>`).join("")}
+    ${[["natural","Natural","Like a person reading aloud: a short breath after each sentence, a longer one at the end of a paragraph and after headings, at a slightly calmer pace."],
+       ["story","Storytelling","Calm and unhurried, for stories and bedtime listening: slower, with longer pauses between sentences and paragraphs."],
+       ["continuous","Continuous","No extra pauses; the fastest way to get through a document."]]
+      .map(([v,l,s])=>`<label class="radio"><input type="radio" name="vsStyle" value="${v}"${curStyle()===v?" checked":""}><span><b>${l}</b><small>${s}</small></span></label>`).join("")}
+    <div class="muted">The style changes only pauses and pace, never the words of the book.</div>
     <div><button class="btn sm" data-natsample>▶ Hear a paragraph</button></div>
   </div>
   ${rest.length?`<details class="vs vsx" data-fold="More languages"${VSOPEN.has("More languages")?" open":""}><summary>More languages: ${rest.map(langName).join(", ")}</summary><div class="vsx-body">${rest.map(l=>langSection(l,true)).join("")}</div></details>`:""}
@@ -2939,7 +2965,9 @@ function renderVoiceSettings(){
        ["en","English parts only","Skips Malayalam, Kannada, Tamil and Arabic text."]]
       .map(([v,l,s])=>`<label class="radio"><input type="radio" name="vsMode" value="${v}"${VS.mode===v?" checked":""}><span><b>${l}</b><small>${s}</small></span></label>`).join("")}
   </div></details>
-  <details class="vs vsx" data-fold="Pronunciation fixes"${VSOPEN.has("Pronunciation fixes")?" open":""}><summary>Pronunciation fixes</summary><div class="vsx-body">
+  <details class="vs vsx" data-fold="Pronunciation fixes"${VSOPEN.has("Pronunciation fixes")?" open":""}><summary>Pronunciation fixes${WCHK.length?` · ${WCHK.length} to check`:""}</summary><div class="vsx-body">
+    ${WCHK.length?`<div class="muted"><b>Words to check in this book</b>: names, abbreviations and words the OCR wasn't sure of. Tap ▶ to hear how they're read now, <b>Fix</b> to write how they should be said, or ✓ if they sound right.</div>
+    <div class="wchk">${WCHK.map((x,i)=>`<div class="wrow"><span class="ww"><span dir="auto">${esc(x.w)}</span><small>${x.why} · ${x.n}×</small></span><button class="btn sm icon-btn" data-wplay="${i}" aria-label="Hear ${esc(x.w)}">▶</button><button class="btn sm" data-wfix="${i}">Fix</button><button class="btn sm icon-btn ghost" data-wok="${i}" aria-label="${esc(x.w)} sounds right">✓</button></div>`).join("")}</div>`:""}
     <div class="muted">Write a word as it appears and how it should be said. Writing it in Malayalam (or Kannada, Tamil, Arabic) letters makes that language's voice say it.</div>
     <div class="dhead"><span>Written as</span><span>Say it as</span></div>
     <div class="dict" id="dictRows">${VS.dict.map((d,i)=>`<div class="drow"><input data-di="${i}" data-f="from" value="${esc(d.from||"")}" aria-label="Written as"><input data-di="${i}" data-f="to" value="${esc(d.to||"")}" aria-label="Say it as"><button class="btn sm icon-btn" data-dtest="${i}" aria-label="Hear ${esc(d.to||"")}">▶</button><button class="btn sm icon-btn ghost danger" data-ddel="${i}" aria-label="Remove ${esc(d.from||"")}">✕</button></div>`).join("")}</div>
@@ -2994,7 +3022,7 @@ document.addEventListener("keydown",e=>{if(e.key==="Escape"&&!$("sheet").hidden)
 $("vsBody").addEventListener("change",e=>{
   const t=e.target;
   if(t.name==="vsMode"){VS.mode=t.value;if(R.on||R.paused)stopReading("Reading mode changed. Tap Read aloud to start again.")}
-  else if(t.name==="vsNatural"){VS.natural=t.value==="1";saveVS();if(R.on){const ci=R.ci;speakFrom(ci)}toast(VS.natural?"Natural reading: pauses like a person reading":"Continuous reading")}
+  else if(t.name==="vsStyle"){VS.style=t.value;VS.natural=t.value!=="continuous";saveVS();if(R.on){const ci=R.ci;speakFrom(ci)}toast({natural:"Natural reading: pauses like a person reading",story:"Storytelling: calm, with longer pauses",continuous:"Continuous reading"}[t.value])}
   else if(t.dataset.vsl)setVoicePref(t.dataset.vsl,t.value);
   else if(t.id==="vsAcc"){VS.accent=t.value;VS.enVoice="";renderVoiceSettings()}
   else if(t.id==="vsEn")VS.enVoice=t.value;
@@ -3020,6 +3048,10 @@ $("vsBody").addEventListener("click",e=>{
   else if(b.dataset.tryall)tryAllVoices(b.dataset.tryall);
   else if(b.dataset.dtest!=null){const d=VS.dict[+b.dataset.dtest];if(d&&d.to)speakSample(d.to,domReg(d.to)||"en")}
   else if(b.dataset.ddel!=null){VS.dict.splice(+b.dataset.ddel,1);saveVS();renderVoiceSettings()}
+  else if(b.dataset.wplay!=null){const x=WCHK[+b.dataset.wplay];if(x)speakSample(x.w,domReg(x.w)||(S.docReg&&VS.mode==="ml"?S.docReg:"en"))}
+  else if(b.dataset.wfix!=null){const x=WCHK[+b.dataset.wfix];if(!x)return;VS.dict.push({from:x.w,to:""});saveVS();VSOPEN.add("Pronunciation fixes");renderVoiceSettings();
+    const ins=$("dictRows").querySelectorAll('input[data-f="to"]');const last=ins[ins.length-1];if(last){last.focus();last.placeholder="How it should sound"}toast(`Write how “${x.w}” should be said, then tap ▶ to hear it`)}
+  else if(b.dataset.wok!=null){const x=WCHK[+b.dataset.wok];if(!x||!S.meta)return;(S.meta.okWords=S.meta.okWords||[]).push(x.w.toLowerCase());putMeta(S.meta);renderVoiceSettings()}
   else if(b.id==="dictAdd"){VS.dict.push({from:"",to:""});saveVS();renderVoiceSettings();const ins=$("dictRows").querySelectorAll("input");ins[ins.length-2]&&ins[ins.length-2].focus()}
 });
 if(NATIVE_TTS){/* voices come from Android */}

@@ -6,7 +6,10 @@ import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.app.Service;
 import android.content.Context;
+import android.content.BroadcastReceiver;
 import android.content.Intent;
+import android.content.IntentFilter;
+import android.media.AudioManager;
 import android.content.pm.ServiceInfo;
 import android.os.Build;
 import android.os.IBinder;
@@ -36,6 +39,14 @@ public class ReaderService extends Service {
     private static boolean lastPlaying = true;
 
     private PowerManager.WakeLock wakeLock;
+    // earphones unplugged or Bluetooth disconnected: pause instead of reading out loud on the speaker
+    private final BroadcastReceiver noisy = new BroadcastReceiver() {
+        @Override
+        public void onReceive(Context c, Intent i) {
+            if (AudioManager.ACTION_AUDIO_BECOMING_NOISY.equals(i.getAction())) ReaderEngine.get(c).pause();
+        }
+    };
+    private boolean noisyRegistered = false;
 
     /** Starts the service (call while the app is on screen, e.g. when Play is tapped). */
     public static void begin(Context c, String title, String text) {
@@ -77,6 +88,13 @@ public class ReaderService extends Service {
     public void onCreate() {
         super.onCreate();
         running = this;
+        try {
+            IntentFilter f = new IntentFilter(AudioManager.ACTION_AUDIO_BECOMING_NOISY);
+            if (Build.VERSION.SDK_INT >= 33) registerReceiver(noisy, f, Context.RECEIVER_NOT_EXPORTED);
+            else registerReceiver(noisy, f);
+            noisyRegistered = true;
+        } catch (Exception ignored) {
+        }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             NotificationChannel ch = new NotificationChannel(CHANNEL, "Reading aloud", NotificationManager.IMPORTANCE_LOW);
             ch.setDescription("Shows which page is being read, with pause and stop buttons");
@@ -114,6 +132,13 @@ public class ReaderService extends Service {
     @Override
     public void onDestroy() {
         holdWakeLock(false);
+        if (noisyRegistered) {
+            try {
+                unregisterReceiver(noisy);
+            } catch (Exception ignored) {
+            }
+            noisyRegistered = false;
+        }
         if (running == this) running = null;
         super.onDestroy();
     }

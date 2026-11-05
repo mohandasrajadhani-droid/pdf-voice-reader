@@ -1,6 +1,10 @@
 package app.pdfvoicereader.malayalam;
 
 import android.content.Context;
+import android.media.AudioAttributes;
+import android.media.AudioFocusRequest;
+import android.media.AudioManager;
+import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
@@ -99,9 +103,43 @@ public class ReaderEngine {
     private Runnable sleepTask;
     private int sleepAfterPage = 0;
     private int stopAfterIndex = -1;
+    // interruptions: phone calls, navigation prompts, other apps playing sound
+    private final AudioManager audio;
+    private AudioFocusRequest focusRequest;
+    private boolean hasFocus = false;
+    private boolean resumeOnFocus = false;
+    private static final AudioAttributes SPEECH = new AudioAttributes.Builder()
+        .setUsage(AudioAttributes.USAGE_MEDIA)
+        .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
+        .build();
+    private final AudioManager.OnAudioFocusChangeListener focusListener = change -> {
+        if (change == AudioManager.AUDIOFOCUS_LOSS_TRANSIENT || change == AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK) {
+            // a call or a short sound from another app: pause, and carry on afterwards
+            boolean was;
+            synchronized (this) {
+                was = playing;
+            }
+            if (was) {
+                pauseKeepingFocus();
+                resumeOnFocus = true;
+            }
+        } else if (change == AudioManager.AUDIOFOCUS_LOSS) {
+            // another app started playing for good (music, video): pause and stay paused
+            resumeOnFocus = false;
+            hasFocus = false;
+            pause();
+        } else if (change == AudioManager.AUDIOFOCUS_GAIN) {
+            hasFocus = true;
+            if (resumeOnFocus) {
+                resumeOnFocus = false;
+                resume();
+            }
+        }
+    };
 
     private ReaderEngine(Context context) {
         ctx = context;
+        audio = (AudioManager) context.getSystemService(Context.AUDIO_SERVICE);
         progress = new UtteranceProgressListener() {
             @Override
             public void onStart(String utteranceId) {
@@ -154,6 +192,11 @@ public class ReaderEngine {
             };
             created.tts = key.isEmpty() ? new TextToSpeech(ctx, onInit) : new TextToSpeech(ctx, onInit, key);
             created.tts.setOnUtteranceProgressListener(progress);
+            // play as spoken media: the volume keys control it and other apps know to pause or lower themselves
+            try {
+                created.tts.setAudioAttributes(SPEECH);
+            } catch (Exception ignored) {
+            }
         }
         return e;
     }
@@ -329,6 +372,7 @@ public class ReaderEngine {
                 paused = false;
                 lastPage = -1;
                 if (playing) {
+                    requestFocus();
                     if (!eng(items.get(current).engine).ready) {
                         playing = false;
                         emit("error", items.get(current).tag, "engine");
@@ -344,6 +388,12 @@ public class ReaderEngine {
     }
 
     public synchronized void pause() {
+        resumeOnFocus = false;
+        pauseKeepingFocus();
+        abandonFocus();
+    }
+
+    private synchronized void pauseKeepingFocus() {
         if (!playing) return;
         playing = false;
         paused = true;
@@ -366,6 +416,8 @@ public class ReaderEngine {
 
     public synchronized void stop() {
         stopAfterIndex = -1;
+        resumeOnFocus = false;
+        abandonFocus();
         playing = false;
         paused = false;
         session++;
@@ -414,6 +466,36 @@ public class ReaderEngine {
             };
             handler.postDelayed(sleepTask, ms);
         }
+    }
+
+    private void requestFocus() {
+        if (hasFocus || audio == null) return;
+        int r;
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            if (focusRequest == null) {
+                focusRequest = new AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN)
+                    .setAudioAttributes(SPEECH)
+                    .setWillPauseWhenDucked(true)
+                    .setOnAudioFocusChangeListener(focusListener)
+                    .build();
+            }
+            r = audio.requestAudioFocus(focusRequest);
+        } else {
+            //noinspection deprecation
+            r = audio.requestAudioFocus(focusListener, AudioManager.STREAM_MUSIC, AudioManager.AUDIOFOCUS_GAIN);
+        }
+        hasFocus = r == AudioManager.AUDIOFOCUS_REQUEST_GRANTED;
+    }
+
+    private void abandonFocus() {
+        if (!hasFocus || audio == null) return;
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            if (focusRequest != null) audio.abandonAudioFocusRequest(focusRequest);
+        } else {
+            //noinspection deprecation
+            audio.abandonAudioFocus(focusListener);
+        }
+        hasFocus = false;
     }
 
     // ---- internals (called with the lock held) ----
