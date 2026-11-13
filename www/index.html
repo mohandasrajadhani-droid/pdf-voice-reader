@@ -140,6 +140,10 @@ body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset
 .wchk{display:grid;gap:4px;max-height:300px;overflow:auto}
 .wrow{display:flex;gap:6px;align-items:center;border:1px solid var(--line);border-radius:8px;padding:4px 6px}
 .ww{flex:1;min-width:0;font-family:var(--f-text);overflow-wrap:anywhere}.ww small{display:block;color:var(--muted);font-family:var(--f-body);font-size:.78rem}
+.gem-out{display:grid;gap:8px;border:1px solid var(--line);border-radius:10px;padding:10px;background:var(--surface)}
+.gem-diff{font-family:var(--f-text);line-height:1.8;max-height:420px;overflow:auto;white-space:pre-wrap;overflow-wrap:anywhere}
+.gem-diff del{background:color-mix(in srgb,#d64545 22%,transparent);text-decoration:line-through;border-radius:3px}
+.gem-diff ins{background:color-mix(in srgb,var(--green) 28%,transparent);text-decoration:none;border-radius:3px}
 .lchips{display:flex;flex-wrap:wrap;gap:6px}.lchips button{min-height:40px;border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:999px;padding:0 14px;font:inherit;font-weight:700;cursor:pointer}.lchips button[aria-pressed="true"]{background:var(--green);color:var(--green-ink);border-color:var(--green)}
 .home-langs{display:grid;gap:6px;margin-top:4px}
 .mixkey{display:flex;flex-wrap:wrap;gap:4px 12px;font-size:.8rem;color:var(--muted)}
@@ -641,6 +645,32 @@ details.vsd summary{cursor:pointer;font-weight:700;min-height:40px;display:flex;
         <label class="chk" for="ocrEnhance"><input type="checkbox" id="ocrEnhance"> Boost faint or grey scans</label>
         <label class="chk" for="hfOn"><input type="checkbox" id="hfOn"> Leave out page numbers and the book or chapter title repeated at the top or bottom of pages</label>
         <div class="muted" id="ocrModel">Reading models for Malayalam, Kannada, Tamil, Arabic, German and English are built into this file. No download needed.</div>
+      </div>
+      <div class="tool" id="gemTool">
+        <h3>Fix OCR text with AI (Google Gemini, free)</h3>
+        <div class="muted" id="gemIntro">Gemini looks at the page picture and corrects the OCR text: broken letters, conjuncts, vowel signs and chillu. It never rewrites or translates, and you check every change. It needs internet and your own free key.</div>
+        <div id="gemSetup">
+          <div class="row"><input type="password" id="gemKey" placeholder="Paste your Gemini API key" aria-label="Gemini API key" autocomplete="off" spellcheck="false"><button class="btn sm primary" id="gemSave">Save key</button></div>
+          <div class="muted">Get a free key at <b>aistudio.google.com/apikey</b> (sign in with Google › Create API key). The key stays on this device only.</div>
+        </div>
+        <div id="gemReady" hidden>
+          <div class="row">
+            <button class="btn sm primary" id="gemFixPage">✨ Fix this page</button>
+            <button class="btn sm" id="gemReadPage">Read this page with AI</button>
+          </div>
+          <div class="row">
+            <label for="gemFrom">Pages</label><input type="number" id="gemFrom" min="1"><label for="gemTo">to</label><input type="number" id="gemTo" min="1">
+            <button class="btn sm" id="gemFixRange">Fix these pages</button>
+          </div>
+          <div class="muted" id="gemModelLine"></div>
+          <div class="row"><button class="btn sm ghost" id="gemForget">Remove key</button></div>
+        </div>
+        <div class="gem-out" id="gemOut" hidden aria-live="polite">
+          <div class="muted" id="gemMsg"></div>
+          <div class="gem-diff" id="gemDiff"></div>
+          <div class="row" id="gemAct"></div>
+        </div>
+        <div class="muted">On Google's free plan, Google may use what you send (page pictures and text) to improve its products, so don't use it for private documents.</div>
       </div>
       <div class="tool">
         <h3>Copy or save pages</h3>
@@ -1733,7 +1763,7 @@ function enterReader(page){
   $("hits").innerHTML="";$("findIn").value="";$("copyBuf").hidden=true;$("rangeInfo").textContent="";
   renderSummary();renderRail();show("reader");S.zoom=0;S.viewChosen=false;$("pinfo").open=window.innerWidth>700;setView("edit");aiInitDoc();setTab("text");goTo(page||1);
   if(OCRSET.auto){const l=bgPending();if(l.length)bgStart(orderFrom(l,S.cur))}bgUI();
-  applyHF();renderBookmarks();renderToc();renderLangChips();
+  applyHF();renderBookmarks();renderToc();renderLangChips();if(typeof gemUI==="function"){$("gemFrom").value=$("gemTo").value="";gemUI();$("gemOut").hidden=true}
   const pdfNow=S.pdf;loadOutline(pdfNow).then(o=>{if(S.pdf!==pdfNow)return;S.outline=o;renderToc();rangeChapterBtn()});
   setTimeout(makeCover,1200);
   if(FSSET.auto&&matchMedia("(max-width:1000px)").matches)fsOpen();
@@ -1791,7 +1821,10 @@ function showText(){
     if(!p.ocr.text) n.push(`<div class="note warn">OCR found no words on this page. It may be blank or a photo, or the print may be too faint. Try again with “Boost faint or grey scans” turned on.</div>`);
     else n.push(`<div class="note ${cls}">Read from the page image with OCR (${OCR_LANG_LABEL[p.ocr.lang]||p.ocr.lang}). ${c>=85?"The engine is confident about most words.":c>=70?"Most words look right; check names and numbers.":"Many words are uncertain. Compare with the page view and correct below, or try again with “Boost faint or grey scans”."}</div>`);
     if(p.ocr.uncertain&&p.ocr.uncertain.length) n.push(`<div class="unsure"><span class="muted">Check these words:</span>${p.ocr.uncertain.map(w=>`<button data-w="${esc(w)}">${esc(w)}</button>`).join("")}</div>`);
-  }else{
+  }
+  if(p.aiFixed&&p.edited) n.push(`<div class="note ok">This page's text was corrected with AI (Gemini). “Restore original” brings back the OCR text.</div>`);
+  else if((p.source==="ocr"||isWaiting(p))&&typeof GEM!=="undefined") n.push(`<div class="note">OCR text not right? <button class="btn sm" data-gemgo="${isWaiting(p)?"read":"fix"}">✨ ${GEM&&GEM.key?"Fix with AI":"Set up AI correction"}</button></div>`);
+  if(!(p.ocr&&p.source==="ocr")){
     if(p.ocr) n.push(`<div class="note">OCR text is also available for this page. Switch with “OCR text” above.</div>`);
     if(p.kind==="scan"&&!p.ocr) n.push(`<div class="note warn">${p.reason} Tap the OCR button to read its words from the image.</div>`);
     else if(p.kind==="legacy"&&!p.ocr) n.push(`<div class="note bad">${p.reason} Tap the OCR button to read the page from its image instead.</div>`);
@@ -3705,6 +3738,184 @@ $("fsPanel").addEventListener("click",e=>{
 });
 $("fsPanel").addEventListener("change",e=>{if(e.target.id==="fsAuto"){FSSET.auto=e.target.checked;saveFsSet()}
   if(e.target.id==="fsKeep"){FSSET.keep=e.target.checked;saveFsSet();if(FSSET.keep)wakeOn();else if(!R.on)wakeOff();toast(FSSET.keep?"The screen stays on in full screen":"The screen follows your phone's sleep setting")}});
+
+
+/* ---------- AI correction of OCR text with Google Gemini (the user's own free key) ----------
+   The page picture and its OCR text go to Gemini, which fixes recognition errors only.
+   Every change is shown for review; the original OCR text is kept and can be restored. */
+var GEM={key:"",model:"",busy:false,ctl:null,fix:null,stop:false};
+try{const o=JSON.parse(localStorage.getItem("pvr-gemini")||"{}");GEM.key=o.key||"";GEM.model=o.model||""}catch(e){}
+const GEM_API="https://generativelanguage.googleapis.com/v1beta";
+function gemSave(){try{localStorage.setItem("pvr-gemini",JSON.stringify({key:GEM.key,model:GEM.model}))}catch(e){}}
+function gemErr(status,body){
+  let msg="";try{const j=JSON.parse(body);msg=(j.error&&(j.error.message||j.error.status))||""}catch(e){msg=String(body||"").slice(0,200)}
+  const e=new Error(
+    status===400&&/API key|API_KEY/i.test(msg)?"This Gemini key isn't valid. Copy it again from aistudio.google.com/apikey.":
+    status===403?"This key isn't allowed to use Gemini. Create a new key at aistudio.google.com/apikey.":
+    status===429?"Gemini's free limit is used up for now. Wait a minute (or until tomorrow if the daily limit is reached), then try again.":
+    status===404?"That Gemini model isn't available to this key.":
+    status>=500?"Google's service had a problem. Try again in a moment.":
+    `Gemini error ${status}: ${msg}`);
+  e.status=status;return e;
+}
+async function gemFetch(path,opts={}){
+  let r;
+  try{r=await fetch(GEM_API+path,{...opts,headers:{"Content-Type":"application/json","x-goog-api-key":GEM.key,...(opts.headers||{})}})}
+  catch(e){if(e&&e.name==="AbortError")throw e;throw new Error(window.claude&&window.claude.use?"This online version can't reach Google. Use the Android app or the offline file for Gemini.":"Couldn't reach Google. Check your internet connection.")}
+  if(!r.ok)throw gemErr(r.status,await r.text());
+  return r.json();
+}
+/* choose the newest stable free "Flash" model this key can use, so retired model names don't break the app */
+async function gemPickModel(force){
+  if(GEM.model&&!force)return GEM.model;
+  const j=await gemFetch("/models?pageSize=200");
+  const names=(j.models||[]).filter(m=>(m.supportedGenerationMethods||[]).includes("generateContent")).map(m=>m.name.replace(/^models\//,""));
+  const ver=n=>{const m=n.match(/gemini-(\d+(?:\.\d+)?)/);return m?parseFloat(m[1]):0};
+  const plain=names.filter(n=>/^gemini-\d+(?:\.\d+)?-flash$/.test(n)).sort((a,b)=>ver(b)-ver(a));
+  const any=names.filter(n=>/flash/.test(n)&&!/lite|tts|live|image|audio|embed|transcribe|translate/.test(n)).sort((a,b)=>ver(b)-ver(a)||(/preview|exp/.test(a)?1:0)-(/preview|exp/.test(b)?1:0));
+  GEM.model=plain[0]||any[0]||names.find(n=>/flash/.test(n))||"";
+  if(!GEM.model)throw new Error("No suitable Gemini model is available to this key.");
+  gemSave();return GEM.model;
+}
+async function gemGenerate(parts,signal){
+  const run=()=>gemFetch(`/models/${encodeURIComponent(GEM.model)}:generateContent`,{method:"POST",signal,body:JSON.stringify({contents:[{role:"user",parts}],generationConfig:{temperature:0}})});
+  let j;
+  try{j=await run()}
+  catch(e){
+    if(e.status===404){await gemPickModel(true);j=await run()}
+    else if(e.status>=500){await new Promise(r=>setTimeout(r,3000));j=await run()}
+    else throw e;
+  }
+  const c=j.candidates&&j.candidates[0];
+  if(!c)throw new Error(j.promptFeedback&&j.promptFeedback.blockReason?`Gemini declined this page (${j.promptFeedback.blockReason}).`:"Gemini sent no answer. Try again.");
+  const text=((c.content&&c.content.parts)||[]).map(x=>x.text||"").join("");
+  return{text,cut:c.finishReason==="MAX_TOKENS"};
+}
+async function pageImageB64(n){
+  const pg=await S.pdf.getPage(n),v1=pg.getViewport({scale:1}),sc=Math.min(2.4,1600/v1.width,2200/v1.height),vp=pg.getViewport({scale:sc});
+  const c=document.createElement("canvas");c.width=Math.floor(vp.width);c.height=Math.floor(vp.height);
+  const x=c.getContext("2d");x.fillStyle="#fff";x.fillRect(0,0,c.width,c.height);
+  await pg.render({canvasContext:x,viewport:vp}).promise;
+  const b64=c.toDataURL("image/jpeg",.85).split(",")[1];c.width=c.height=0;return b64;
+}
+function gemLangs(p){const l=[...new Set([...(S.meta&&S.meta.langs||[]),...docOcrLangs().map(c=>TESS2L[c])])].filter(Boolean).map(langName);return l.length?l.join(", "):"Malayalam and English"}
+const GEM_RULES=`Rules: keep exactly the words, spelling, punctuation, numbers, order and language that are printed. Never translate, summarise, modernise the spelling, rewrite or add anything. Keep old-style (traditional script) words as printed, in Unicode. Use atomic chillu letters (ൻ ർ ൽ ൾ ൺ). Leave out page numbers and the book or chapter title repeated at the top or bottom of the page. Keep each paragraph as one block, with a blank line between paragraphs. If a word cannot be read in the picture, keep it as it is. Reply with only the page text: no notes, no headings of your own, no quotation marks or code blocks around it.`;
+function gemClean(s){
+  s=String(s||"").replace(/^\s*```[a-z]*\s*\n?/i,"").replace(/\n?```\s*$/,"").trim();
+  return s.normalize("NFC").replace(/([ണനരലളക])്‍/g,(m,c)=>({"ണ":"ൺ","ന":"ൻ","ര":"ർ","ല":"ൽ","ള":"ൾ","ക":"ൿ"})[c]).replace(/\n{3,}/g,"\n\n");
+}
+async function gemPage(n,mode,signal){
+  const p=S.pages[n-1],img=await pageImageB64(n);
+  const ocr=(p.text||"").trim();
+  const prompt=mode==="read"||!ocr
+    ?`This is a picture of page ${n} of a book in ${gemLangs(p)}. Type out all the text printed on it, exactly as printed.\n${GEM_RULES}`
+    :`This is a picture of page ${n} of a book in ${gemLangs(p)}, and below is the text an OCR program read from it. The OCR text has recognition mistakes: wrong or broken letters, conjuncts and vowel signs, wrong chillu letters, missing or extra characters, and wrong spaces. Correct the OCR text so that it matches what is printed in the picture. Change only what the OCR got wrong.\n${GEM_RULES}\n\nOCR text:\n<<<\n${ocr}\n>>>`;
+  await gemPickModel();
+  const r=await gemGenerate([{text:prompt},{inlineData:{mimeType:"image/jpeg",data:img}}],signal);
+  return{text:gemClean(r.text),cut:r.cut,before:ocr};
+}
+/* word-level differences, for review */
+function wordDiff(a,b){
+  const A=a.split(/(\s+)/),B=b.split(/(\s+)/);
+  if(A.length*B.length>4e6)return{html:esc(b),changed:-1};
+  const n=A.length,m=B.length,L=Array.from({length:n+1},()=>new Uint16Array(m+1));
+  for(let i=n-1;i>=0;i--)for(let j=m-1;j>=0;j--)L[i][j]=A[i]===B[j]?L[i+1][j+1]+1:Math.max(L[i+1][j],L[i][j+1]);
+  let i=0,j=0,h="",changed=0;
+  while(i<n||j<m){
+    if(i<n&&j<m&&A[i]===B[j]){h+=esc(B[j]);i++;j++}
+    else if(j<m&&(i>=n||L[i][j+1]>=L[i+1][j])){if(/\S/.test(B[j])){h+=`<ins>${esc(B[j])}</ins>`;changed++}else h+=esc(B[j]);j++}
+    else{if(/\S/.test(A[i])){h+=`<del>${esc(A[i])}</del>`;changed++}i++}
+  }
+  return{html:h,changed};
+}
+function gemSetBusy(on){GEM.busy=on;["gemFixPage","gemReadPage","gemFixRange","gemSave"].forEach(id=>{const b=$(id);if(b)b.disabled=on})}
+function gemUI(){
+  const has=!!GEM.key;$("gemSetup").hidden=has;$("gemReady").hidden=!has;
+  $("gemModelLine").textContent=has?(GEM.model?`Using ${GEM.model}.`:"The model is chosen automatically on first use."):"";
+  if(S.pages&&S.pages.length){if(!$("gemFrom").value)$("gemFrom").value=S.cur;if(!$("gemTo").value)$("gemTo").value=Math.min(S.pages.length,S.cur+4)}
+}
+function applyFix(n,text){
+  const p=S.pages[n-1];p.text=text;p.edited=p.text!==p.orig;p.aiFixed=Date.now();p.hfKey=null;p.lang=detectLang(p.text);
+  saveDoc();if(S.cur===n)showText();
+}
+async function gemOne(mode){
+  if(GEM.busy||!S.pdf)return;
+  const n=S.cur,p=S.pages[n-1];
+  if(mode==="fix"&&!(p.text||"").trim()&&isWaiting(p)){mode="read"}
+  gemSetBusy(true);GEM.ctl=new AbortController();
+  $("gemOut").hidden=false;$("gemDiff").innerHTML="";$("gemAct").innerHTML=`<button class="btn sm" data-gem="cancel">Cancel</button>`;
+  $("gemMsg").textContent=mode==="read"?`Gemini is reading page ${n}…`:`Gemini is checking page ${n} against its picture…`;
+  try{
+    const r=await gemPage(n,mode,GEM.ctl.signal);
+    if(!r.text){$("gemMsg").textContent="Gemini returned no text for this page.";$("gemAct").innerHTML="";return}
+    GEM.fix={page:n,text:r.text};
+    if(r.before){
+      const d=wordDiff(r.before,r.text),big=Math.abs(r.text.length-r.before.length)>r.before.length*.4;
+      $("gemDiff").innerHTML=d.html;
+      $("gemMsg").innerHTML=(d.changed===0?"No mistakes found: the text already matches the page.":`<b>${d.changed===-1?"Many":d.changed} change${d.changed===1?"":"s"}</b>: <del>struck out</del> is the OCR text, <ins>highlighted</ins> is Gemini's correction. Compare with the page picture before accepting.`)+(big?` <b>Careful:</b> the length changed a lot, so check that nothing was added or left out.`:"")+(r.cut?" The answer was cut short; the end of the page may be missing.":"");
+      $("gemAct").innerHTML=d.changed===0?"":`<button class="btn sm primary" data-gem="use">Use corrected text</button><button class="btn sm" data-gem="discard">Keep the OCR text</button>`;
+    }else{
+      $("gemDiff").textContent=r.text;
+      $("gemMsg").textContent=`Gemini read page ${n}. Check it against the page picture, then use it.`+(r.cut?" The answer was cut short.":"");
+      $("gemAct").innerHTML=`<button class="btn sm primary" data-gem="use">Use this text</button><button class="btn sm" data-gem="discard">Discard</button>`;
+    }
+  }catch(e){
+    $("gemMsg").textContent=e&&e.name==="AbortError"?"Cancelled.":(e&&e.message||String(e));$("gemAct").innerHTML="";
+  }finally{gemSetBusy(false);GEM.ctl=null;gemUI()}
+}
+async function gemRange(){
+  if(GEM.busy||!S.pdf)return;
+  let a=+$("gemFrom").value||S.cur,b=+$("gemTo").value||a;a=Math.max(1,Math.min(a,S.pages.length));b=Math.max(a,Math.min(b,S.pages.length));
+  if(b-a>=50){toast("Fix up to 50 pages at a time, to stay within Gemini's free limits.",true);return}
+  gemSetBusy(true);GEM.stop=false;GEM.ctl=new AbortController();
+  $("gemOut").hidden=false;$("gemDiff").innerHTML="";$("gemAct").innerHTML=`<button class="btn sm" data-gem="stop">Stop</button>`;
+  const done=[],same=[],skipped=[];let fail="";
+  for(let n=a;n<=b&&!GEM.stop;n++){
+    const p=S.pages[n-1];
+    if(!(p.text||"").trim()&&!isWaiting(p)&&p.kind==="text"){continue}
+    $("gemMsg").textContent=`Checking page ${n} (${n-a+1} of ${b-a+1})… Pages are fixed a few seconds apart to stay within the free limit.`;
+    let tries=0;
+    while(true){
+      try{
+        const r=await gemPage(n,(p.text||"").trim()?"fix":"read",GEM.ctl.signal);
+        const before=(p.text||"").trim();
+        if(!r.text||r.cut||(before&&Math.abs(r.text.length-before.length)>before.length*.4))skipped.push(n);
+        else if(r.text===before)same.push(n);
+        else{applyFix(n,r.text);done.push(n)}
+        break;
+      }catch(e){
+        if(e&&e.name==="AbortError"){GEM.stop=true;break}
+        if(e.status===429&&tries<2){tries++;$("gemMsg").textContent=`Free limit reached; waiting 40 seconds before page ${n}…`;await new Promise(r=>setTimeout(r,40000));if(GEM.stop)break;continue}
+        fail=e&&e.message||String(e);GEM.stop=true;break;
+      }
+    }
+    if(!GEM.stop&&n<b)await new Promise(r=>setTimeout(r,6500));
+  }
+  const list=x=>x.length>8?`${x.slice(0,8).join(", ")} and ${x.length-8} more`:x.join(", ");
+  $("gemMsg").innerHTML=[done.length?`Corrected page${done.length>1?"s":""} ${list(done)}.`:"",same.length?`No mistakes found on ${list(same)}.`:"",
+    skipped.length?`<b>Left unchanged</b> (the AI changed too much, or its answer was cut short; check with “Fix this page”): ${list(skipped)}.`:"",
+    fail?`<b>Stopped:</b> ${esc(fail)}`:"",done.length?"You can undo any page with “Restore original”.":""].filter(Boolean).join(" ")||"Nothing to fix in these pages.";
+  $("gemAct").innerHTML="";gemSetBusy(false);GEM.ctl=null;gemUI();
+}
+$("gemSave").onclick=async()=>{
+  const k=$("gemKey").value.trim();if(!k){$("gemKey").focus();return}
+  GEM.key=k;GEM.model="";gemSetBusy(true);$("gemOut").hidden=false;$("gemDiff").innerHTML="";$("gemAct").innerHTML="";$("gemMsg").textContent="Checking the key with Google…";
+  try{const m=await gemPickModel(true);$("gemKey").value="";$("gemMsg").textContent=`Key saved. Gemini (${m}) is ready.`;gemSave()}
+  catch(e){$("gemMsg").textContent=e.message;if(e.status===400||e.status===403){GEM.key="";GEM.model=""}else gemSave()}
+  finally{gemSetBusy(false);gemUI()}
+};
+$("gemForget").onclick=()=>{GEM.key="";GEM.model="";gemSave();$("gemOut").hidden=true;gemUI();toast("Gemini key removed from this device")};
+$("gemFixPage").onclick=()=>gemOne("fix");
+$("gemReadPage").onclick=()=>gemOne("read");
+$("gemFixRange").onclick=gemRange;
+$("gemAct").addEventListener("click",e=>{
+  const b=e.target.closest("[data-gem]");if(!b)return;const a=b.dataset.gem;
+  if(a==="use"&&GEM.fix){applyFix(GEM.fix.page,GEM.fix.text);$("gemMsg").textContent=`Page ${GEM.fix.page} updated. “Restore original” brings back the OCR text.`;$("gemDiff").innerHTML="";$("gemAct").innerHTML="";GEM.fix=null}
+  else if(a==="discard"){GEM.fix=null;$("gemOut").hidden=true}
+  else if(a==="cancel"||a==="stop"){GEM.stop=true;try{GEM.ctl&&GEM.ctl.abort()}catch(_){};$("gemMsg").textContent="Stopping…"}
+});
+document.addEventListener("click",e=>{const b=e.target.closest("[data-gemgo]");if(!b)return;setTab("tools");$("gemTool").scrollIntoView({block:"start"});if(GEM.key)gemOne(b.dataset.gemgo)});
+gemUI();
 
 /* boot */
 renderLangChips();
